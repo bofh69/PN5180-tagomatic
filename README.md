@@ -47,10 +47,36 @@ See [firmware/README.md](firmware/README.md) for instructions on building and up
 ## Usage
 
 ```python
-import pn5180_tagomatic
+import serial
+from pn5180_tagomatic import PN5180
 
-# Usage examples to be added
+# Open serial connection to the device
+ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
+
+# Create reader instance and use it
+with PN5180(ser) as reader:
+    # Reset the PN5180 module
+    reader.reset()
+    print("Device reset successfully")
 ```
+
+### Example Program
+
+An example program is provided in the `examples/` directory:
+
+```bash
+# Run the basic example
+python examples/basic_example.py /dev/ttyACM0
+
+# On Windows
+python examples/basic_example.py COM3
+```
+
+The example demonstrates:
+- Opening a serial connection to the device
+- Creating a PN5180 reader instance
+- Calling the reset function via SimpleRPC
+- Proper resource cleanup using context managers
 
 ## Development
 

@@ -26,6 +26,20 @@ This directory contains the Arduino sketch for the Raspberry Pi Pico firmware th
 
 ## Building and Uploading
 
+### Prerequisites
+
+The firmware requires the SimpleRPC library. Install it using one of these methods:
+
+**Arduino IDE:**
+1. Go to Sketch > Include Library > Manage Libraries
+2. Search for "simpleRPC"
+3. Install the library by Joon Chung
+
+**Arduino CLI:**
+```bash
+arduino-cli lib install simpleRPC
+```
+
 ### Using Arduino IDE
 
 1. Install the Arduino IDE
@@ -34,15 +48,19 @@ This directory contains the Arduino sketch for the Raspberry Pi Pico firmware th
    - Add to Additional Board Manager URLs: `https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json`
    - Go to Tools > Board > Board Manager
    - Search for "pico" and install "Raspberry Pi Pico/RP2040"
-3. Select Board: Tools > Board > Raspberry Pi Pico
-4. Select Port: Tools > Port > (your Pico's port)
-5. Upload the sketch
+3. Install the SimpleRPC library (see Prerequisites above)
+4. Select Board: Tools > Board > Raspberry Pi Pico
+5. Select Port: Tools > Port > (your Pico's port)
+6. Upload the sketch
 
 ### Using Arduino CLI
 
 ```bash
 # Install board support
 arduino-cli core install rp2040:rp2040
+
+# Install SimpleRPC library
+arduino-cli lib install simpleRPC
 
 # Compile
 arduino-cli compile --fqbn rp2040:rp2040:rpipico firmware/pn5180_reader
@@ -53,6 +71,12 @@ arduino-cli upload -p /dev/ttyACM0 --fqbn rp2040:rp2040:rpipico firmware/pn5180_
 
 ## Protocol
 
-The firmware communicates with the host computer over USB serial at 115200 baud.
+The firmware communicates with the host computer over USB serial at 115200 baud using the SimpleRPC protocol.
 
-(Protocol specification to be defined)
+### Available Functions
+
+- `reset()`: Reset the PN5180 NFC frontend by toggling the hardware reset pin.
+
+### SimpleRPC
+
+SimpleRPC is a simple RPC (Remote Procedure Call) protocol for Arduino that allows Python programs to call Arduino functions over serial. The protocol is documented at: https://simplerpc.readthedocs.io/

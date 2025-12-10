@@ -12,7 +12,6 @@ description = "USB based RFID reader with Python interface"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "GPL-3.0-or-later"}
-license-files = ["LICENSE"]
 authors = [
     {name = "PN5180-tagomatic contributors"}
 ]
@@ -30,7 +29,11 @@ classifiers = [
     "Topic :: System :: Hardware",
 ]
 
-dependencies = []
+dependencies = [
+    "pyserial>=3.5",
+    "arduino-simple-rpc>=2.4.0",
+    "setuptools>=65.0.0",  # Required by arduino-simple-rpc for pkg_resources
+]
 
 [project.optional-dependencies]
 dev = [
@@ -39,6 +42,7 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.0.0",
     "black>=23.0.0",
+    "types-pyserial>=3.5.0",
 ]
 
 [project.urls]
