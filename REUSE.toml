@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2025 PN5180-tagomatic contributors
+# SPDX-License-Identifier: CC0-1.0
+
+version = 1
+SPDX-PackageName = "PN5180-tagomatic"
+SPDX-PackageSupplier = "PN5180-tagomatic contributors"
+SPDX-PackageDownloadLocation = "https://github.com/bofh69/PN5180-tagomatic"
+
+[[annotations]]
+path = ["firmware/board.jpg"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2025 PN5180-tagomatic contributors"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+[[annotations]]
+path = [".gitignore", ".clang-format"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2025 PN5180-tagomatic contributors"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = ["LICENSE", "LICENSES/GPL-3.0-or-later.txt"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2007 Free Software Foundation, Inc."
+SPDX-License-Identifier = "GPL-3.0-or-later"

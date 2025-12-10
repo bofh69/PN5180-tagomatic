@@ -5,15 +5,20 @@ SPDX-FileCopyrightText: 2025 PN5180-tagomatic contributors
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
+This is a work in progress. Few things described here actually works
+yet.
+
 USB based RFID reader with Python interface
 
 [![Python CI](https://github.com/bofh69/PN5180-tagomatic/workflows/Python%20CI/badge.svg)](https://github.com/bofh69/PN5180-tagomatic/actions)
-[![REUSE status](https://api.reuse.software/badge/github.com/bofh69/PN5180-tagomatic)](https://api.reuse.software/info/github.com/bofh69/PN5180-tagomatic)
+[![REUSE status](https://api.reuse.software/badge/git@github.com/bofh69/PN5180-tagomatic)](https://api.reuse.software/info/git@github.com/bofh69/PN5180-tagomatic)
 [![PyPI version](https://badge.fury.io/py/pn5180-tagomatic.svg)](https://badge.fury.io/py/pn5180-tagomatic)
 
 ## Overview
 
-PN5180-tagomatic is a USB-based RFID reader system that provides a Python interface for reading NFC/RFID tags using the PN5180 NFC Frontend module and a Raspberry Pi Pico.
+PN5180-tagomatic is a USB-based RFID reader that provides
+a Python interface for reading NFC/RFID tags using the PN5180 NFC
+Frontend module and a Raspberry Pi Pico (Zero).
 
 ## Features
 
