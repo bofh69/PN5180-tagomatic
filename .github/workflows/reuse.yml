@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2025 PN5180-tagomatic contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: REUSE Compliance
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  reuse:
+    name: Check REUSE compliance
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: REUSE Compliance Check
+        uses: fsfe/reuse-action@v4

@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2025 PN5180-tagomatic contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+include README.md
+include LICENSE
+include pyproject.toml
+recursive-include src *.py
+recursive-include firmware *.ino *.md
+recursive-include LICENSES *.txt
+include .reuse/dep5
