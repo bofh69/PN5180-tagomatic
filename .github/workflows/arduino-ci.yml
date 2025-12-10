@@ -55,6 +55,10 @@ jobs:
           arduino-cli core update-index
           arduino-cli core install ${{ matrix.board.platform }}
       
+      - name: Install SimpleRPC library
+        run: |
+          arduino-cli lib install simpleRPC
+      
       - name: Compile sketch for ${{ matrix.board.name }}
         run: |
           arduino-cli compile --fqbn ${{ matrix.board.fqbn }} firmware/pn5180_reader
