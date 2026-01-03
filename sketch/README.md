@@ -21,7 +21,7 @@ My prototype board with horrible soldering:
 
 | PN5180 Pin | Raspberry Pi Pico Zero Pin |
 |------------|----------------------------|
-| NSS        | GP5                        |
+| NSS        | GP1                        |
 | BUSY       | GP4                        |
 | RST        | GP7                        |
 | MOSI       | GP3 (SPI0 TX)              |
