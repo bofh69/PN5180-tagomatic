@@ -58,6 +58,7 @@ jobs:
       - name: Install SimpleRPC library
         run: |
           arduino-cli lib install simpleRPC
+          arduino-cli lib install FastLED
       
       - name: Compile sketch for ${{ matrix.board.name }}
         run: |
