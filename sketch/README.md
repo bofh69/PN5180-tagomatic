@@ -77,10 +77,10 @@ arduino-cli core install rp2040:rp2040
 arduino-cli lib install ...
 
 # Compile
-arduino-cli compile --fqbn rp2040:rp2040:rpipico firmware/pn5180_reader
+arduino-cli compile --fqbn rp2040:rp2040:rpipico sketch/pn5180_reader
 
 # Upload (replace /dev/ttyACM0 with your port)
-arduino-cli upload -p /dev/ttyACM0 --fqbn rp2040:rp2040:rpipico firmware/pn5180_reader
+arduino-cli upload -p /dev/ttyACM0 --fqbn rp2040:rp2040:rpipico sketch/pn5180_reader
 ```
 
 ## Protocol

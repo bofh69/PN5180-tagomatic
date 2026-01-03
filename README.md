@@ -47,7 +47,7 @@ pip install -e .
 
 ### Firmware
 
-See [firmware/README.md](firmware/README.md) for instructions on building and uploading the Raspberry Pi Pico firmware.
+See [sketch/README.md](sketch/README.md) for instructions on building and uploading the Raspberry Pi Pico firmware.
 
 ## Usage
 

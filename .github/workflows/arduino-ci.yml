@@ -28,7 +28,7 @@ jobs:
       - name: Check sketch formatting
         run: |
           # Find all .ino files and check formatting
-          find firmware -name "*.ino" -exec clang-format --dry-run --Werror {} +
+          find sketch -name "*.ino" -exec clang-format --dry-run --Werror {} +
   
   build:
     name: Build Arduino Sketch
@@ -61,10 +61,10 @@ jobs:
       
       - name: Compile sketch for ${{ matrix.board.name }}
         run: |
-          arduino-cli compile --fqbn ${{ matrix.board.fqbn }} firmware/pn5180_reader
+          arduino-cli compile --fqbn ${{ matrix.board.fqbn }} sketch/pn5180_reader
       
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: firmware-${{ matrix.board.name }}
-          path: firmware/pn5180_reader/build/
+          name: sketch-${{ matrix.board.name }}
+          path: sketch/pn5180_reader/build/
