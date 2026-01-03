@@ -7,7 +7,7 @@ SPDX-PackageSupplier = "PN5180-tagomatic contributors"
 SPDX-PackageDownloadLocation = "https://github.com/bofh69/PN5180-tagomatic"
 
 [[annotations]]
-path = ["firmware/board.jpg"]
+path = ["sketch/board.jpg"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2025 PN5180-tagomatic contributors"
 SPDX-License-Identifier = "GPL-3.0-or-later"
