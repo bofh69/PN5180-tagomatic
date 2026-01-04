@@ -125,19 +125,19 @@ class PN5180:
             Tuple[int, List[int]], self._interface.read_register_multiple(addrs)
         )
 
-    def write_eeprom(self, addr: int, values: List[int]) -> int:
+    def write_eeprom(self, addr: int, values: bytes) -> int:
         """Write to the EEPROM.
 
         Args:
             addr: EEPROM address.
-            values: Vector of up to 255 bytes to write.
+            values: Up to 255 bytes to write.
 
         Returns:
             0 at success, < 0 at failure.
         """
-        return cast(int, self._interface.write_eeprom(addr, values))
+        return cast(int, self._interface.write_eeprom(addr, list(values)))
 
-    def read_eeprom(self, addr: int, length: int) -> Tuple[int, List[int]]:
+    def read_eeprom(self, addr: int, length: int) -> Tuple[int, bytes]:
         """Read from the EEPROM.
 
         Args:
@@ -146,34 +146,35 @@ class PN5180:
 
         Returns:
             Tuple with status (0 at success, < 0 at failure) and
-            Vector of bytes read.
+            bytes read.
         """
-        return cast(Tuple[int, List[int]], self._interface.read_eeprom(addr, length))
+        result = self._interface.read_eeprom(addr, length)
+        return (result[0], bytes(result[1]))
 
-    def write_tx_data(self, values: List[int]) -> int:
+    def write_tx_data(self, values: bytes) -> int:
         """Write to tx buffer.
 
         Args:
-            values: Vector of up to 260 bytes to write.
+            values: Up to 260 bytes to write.
 
         Returns:
             0 at success, < 0 at failure.
         """
-        return cast(int, self._interface.write_tx_data(values))
+        return cast(int, self._interface.write_tx_data(list(values)))
 
-    def send_data(self, bits: int, values: List[int]) -> int:
+    def send_data(self, bits: int, values: bytes) -> int:
         """Write to TX buffer and send it.
 
         Args:
             bits: Number of valid bits in final byte.
-            values: Vector of up to 260 bytes to send.
+            values: Up to 260 bytes to send.
 
         Returns:
             0 at success, < 0 at failure.
         """
-        return cast(int, self._interface.send_data(bits, values))
+        return cast(int, self._interface.send_data(bits, list(values)))
 
-    def read_data(self, length: int) -> Tuple[int, List[int]]:
+    def read_data(self, length: int) -> Tuple[int, bytes]:
         """Read from RX buffer.
 
         Args:
@@ -181,9 +182,10 @@ class PN5180:
 
         Returns:
             Tuple with status (0 at success, < 0 at failure) and
-            Vector of bytes read.
+            bytes read.
         """
-        return cast(Tuple[int, List[int]], self._interface.read_data(length))
+        result = self._interface.read_data(length)
+        return (result[0], bytes(result[1]))
 
     def switch_mode(self, mode: int, params: List[int]) -> int:
         """Switch mode.
@@ -198,7 +200,7 @@ class PN5180:
         return cast(int, self._interface.switch_mode(mode, params))
 
     def mifare_authenticate(
-        self, key: List[int], key_type: int, block_addr: int, uid: int
+        self, key: bytes, key_type: int, block_addr: int, uid: int
     ) -> int:
         """Authenticate to mifare card.
 
@@ -211,21 +213,26 @@ class PN5180:
         Returns:
             0=authenticated, 1=permission denied, 2=timeout, < 0 at failure.
         """
+        if len(key) != 6:
+            raise ValueError("Key must be exactly 6 bytes")
         return cast(
-            int, self._interface.mifare_authenticate(key, key_type, block_addr, uid)
+            int,
+            self._interface.mifare_authenticate(
+                list(key), key_type, block_addr, uid
+            ),
         )
 
     def epc_inventory(
         self,
-        select_command: List[int],
+        select_command: bytes,
         select_command_final_bits: int,
-        begin_round: List[int],
+        begin_round: bytes,
         timeslot_behavior: int,
     ) -> int:
         """Start EPC inventory algorithm.
 
         Args:
-            select_command: Vector of up to 39 bytes.
+            select_command: Up to 39 bytes.
             select_command_final_bits: Number of valid bits in final byte.
             begin_round: 3 byte array.
             timeslot_behavior: Timeslot behavior value.
@@ -233,12 +240,16 @@ class PN5180:
         Returns:
             0 at success, < 0 at failure.
         """
+        if len(select_command) > 39:
+            raise ValueError("select_command must be at most 39 bytes")
+        if len(begin_round) != 3:
+            raise ValueError("begin_round must be exactly 3 bytes")
         return cast(
             int,
             self._interface.epc_inventory(
-                select_command,
+                list(select_command),
                 select_command_final_bits,
-                begin_round,
+                list(begin_round),
                 timeslot_behavior,
             ),
         )
