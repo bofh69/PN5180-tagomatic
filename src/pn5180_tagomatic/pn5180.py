@@ -17,6 +17,21 @@ except ImportError as e:
     ) from e
 
 
+class PN5180Error(Exception):
+    """Exception raised when a PN5180 operation fails."""
+
+    def __init__(self, operation: str, error_code: int) -> None:
+        """Initialize PN5180Error.
+
+        Args:
+            operation: Name of the operation that failed.
+            error_code: The error code returned by the operation.
+        """
+        self.operation = operation
+        self.error_code = error_code
+        super().__init__(f"{operation} failed with error code {error_code}")
+
+
 class MifareKeyType(IntEnum):
     """Mifare authentication key types."""
 
@@ -99,51 +114,57 @@ class PN5180:
         """
         self._interface.reset()
 
-    def write_register(self, addr: int, value: int) -> int:
+    def write_register(self, addr: int, value: int) -> None:
         """Write to a PN5180 register.
 
         Args:
             addr: Register address (byte: 0-255).
             value: 32-bit value to write (0-2^32-1).
 
-        Returns:
-            0 at success, < 0 at failure.
+        Raises:
+            PN5180Error: If the operation fails.
         """
         self._validate_uint8(addr, "addr")
         self._validate_uint32(value, "value")
-        return cast(int, self._interface.write_register(addr, value))
+        result = cast(int, self._interface.write_register(addr, value))
+        if result < 0:
+            raise PN5180Error("write_register", result)
 
-    def write_register_or_mask(self, addr: int, value: int) -> int:
+    def write_register_or_mask(self, addr: int, value: int) -> None:
         """Write to a PN5180 register OR the old value.
 
         Args:
             addr: Register address (byte: 0-255).
             value: 32-bit mask to OR (0-2^32-1).
 
-        Returns:
-            0 at success, < 0 at failure.
+        Raises:
+            PN5180Error: If the operation fails.
         """
         self._validate_uint8(addr, "addr")
         self._validate_uint32(value, "value")
-        return cast(int, self._interface.write_register_or_mask(addr, value))
+        result = cast(int, self._interface.write_register_or_mask(addr, value))
+        if result < 0:
+            raise PN5180Error("write_register_or_mask", result)
 
-    def write_register_and_mask(self, addr: int, value: int) -> int:
+    def write_register_and_mask(self, addr: int, value: int) -> None:
         """Write to a PN5180 register AND the old value.
 
         Args:
             addr: Register address (byte: 0-255).
             value: 32-bit mask to AND (0-2^32-1).
 
-        Returns:
-            0 at success, < 0 at failure.
+        Raises:
+            PN5180Error: If the operation fails.
         """
         self._validate_uint8(addr, "addr")
         self._validate_uint32(value, "value")
-        return cast(int, self._interface.write_register_and_mask(addr, value))
+        result = cast(int, self._interface.write_register_and_mask(addr, value))
+        if result < 0:
+            raise PN5180Error("write_register_and_mask", result)
 
     def write_register_multiple(
         self, elements: List[Tuple[int, int, int]]
-    ) -> int:
+    ) -> None:
         """Write to multiple PN5180 registers.
 
         Args:
@@ -152,8 +173,8 @@ class PN5180:
                      op: RegisterOperation (1=SET, 2=OR, 3=AND)
                      value/mask: 32-bit value (0-2^32-1)
 
-        Returns:
-            0 at success, < 0 at failure.
+        Raises:
+            PN5180Error: If the operation fails.
         """
         for i, (addr, op, value) in enumerate(elements):
             self._validate_uint8(addr, f"elements[{i}].address")
@@ -167,55 +188,69 @@ class PN5180:
                     f"OR (2), or AND (3)"
                 )
             self._validate_uint32(value, f"elements[{i}].value")
-        return cast(int, self._interface.write_register_multiple(elements))
+        result = cast(int, self._interface.write_register_multiple(elements))
+        if result < 0:
+            raise PN5180Error("write_register_multiple", result)
 
-    def read_register(self, addr: int) -> Tuple[int, int]:
+    def read_register(self, addr: int) -> int:
         """Read from a PN5180 register.
 
         Args:
             addr: Register address (byte: 0-255).
 
         Returns:
-            Tuple with status (0 at success, < 0 at failure) and
             32-bit register value.
+
+        Raises:
+            PN5180Error: If the operation fails.
         """
         self._validate_uint8(addr, "addr")
-        return cast(Tuple[int, int], self._interface.read_register(addr))
+        result = cast(Tuple[int, int], self._interface.read_register(addr))
+        if result[0] < 0:
+            raise PN5180Error("read_register", result[0])
+        return result[1]
 
-    def read_register_multiple(self, addrs: List[int]) -> Tuple[int, List[int]]:
+    def read_register_multiple(self, addrs: List[int]) -> List[int]:
         """Read from multiple PN5180 registers.
 
         Args:
             addrs: List of up to 18 register addresses (each byte: 0-255).
 
         Returns:
-            Tuple with status (0 at success, < 0 at failure) and
             List of 32-bit register values.
+
+        Raises:
+            PN5180Error: If the operation fails.
         """
         if len(addrs) > 18:
             raise ValueError("addrs must contain at most 18 addresses")
         for i, addr in enumerate(addrs):
             self._validate_uint8(addr, f"addrs[{i}]")
-        return cast(
+        result = cast(
             Tuple[int, List[int]], self._interface.read_register_multiple(addrs)
         )
+        if result[0] < 0:
+            raise PN5180Error("read_register_multiple", result[0])
+        return result[1]
 
-    def write_eeprom(self, addr: int, values: bytes) -> int:
+    def write_eeprom(self, addr: int, values: bytes) -> None:
         """Write to the EEPROM.
 
         Args:
             addr: EEPROM address (byte: 0-255).
             values: Up to 255 bytes to write.
 
-        Returns:
-            0 at success, < 0 at failure.
+        Raises:
+            PN5180Error: If the operation fails.
         """
         self._validate_uint8(addr, "addr")
         if len(values) > 255:
             raise ValueError("values must be at most 255 bytes")
-        return cast(int, self._interface.write_eeprom(addr, list(values)))
+        result = cast(int, self._interface.write_eeprom(addr, list(values)))
+        if result < 0:
+            raise PN5180Error("write_eeprom", result)
 
-    def read_eeprom(self, addr: int, length: int) -> Tuple[int, bytes]:
+    def read_eeprom(self, addr: int, length: int) -> bytes:
         """Read from the EEPROM.
 
         Args:
@@ -223,67 +258,79 @@ class PN5180:
             length: Number of bytes to read (byte: 0-255).
 
         Returns:
-            Tuple with status (0 at success, < 0 at failure) and
-            bytes read.
+            Bytes read from EEPROM.
+
+        Raises:
+            PN5180Error: If the operation fails.
         """
         self._validate_uint8(addr, "addr")
         self._validate_uint8(length, "length")
         result = self._interface.read_eeprom(addr, length)
-        return (result[0], bytes(result[1]))
+        if result[0] < 0:
+            raise PN5180Error("read_eeprom", result[0])
+        return bytes(result[1])
 
-    def write_tx_data(self, values: bytes) -> int:
+    def write_tx_data(self, values: bytes) -> None:
         """Write to tx buffer.
 
         Args:
             values: Up to 260 bytes to write.
 
-        Returns:
-            0 at success, < 0 at failure.
+        Raises:
+            PN5180Error: If the operation fails.
         """
         if len(values) > 260:
             raise ValueError("values must be at most 260 bytes")
-        return cast(int, self._interface.write_tx_data(list(values)))
+        result = cast(int, self._interface.write_tx_data(list(values)))
+        if result < 0:
+            raise PN5180Error("write_tx_data", result)
 
-    def send_data(self, bits: int, values: bytes) -> int:
+    def send_data(self, bits: int, values: bytes) -> None:
         """Write to TX buffer and send it.
 
         Args:
             bits: Number of valid bits in final byte (byte: 0-255).
             values: Up to 260 bytes to send.
 
-        Returns:
-            0 at success, < 0 at failure.
+        Raises:
+            PN5180Error: If the operation fails.
         """
         self._validate_uint8(bits, "bits")
         if len(values) > 260:
             raise ValueError("values must be at most 260 bytes")
-        return cast(int, self._interface.send_data(bits, list(values)))
+        result = cast(int, self._interface.send_data(bits, list(values)))
+        if result < 0:
+            raise PN5180Error("send_data", result)
 
-    def read_data(self, length: int) -> Tuple[int, bytes]:
+    def read_data(self, length: int) -> bytes:
         """Read from RX buffer.
 
         Args:
             length: Number of bytes to read (max 508, 16-bit value: 0-65535).
 
         Returns:
-            Tuple with status (0 at success, < 0 at failure) and
-            bytes read.
+            Bytes read from RX buffer.
+
+        Raises:
+            PN5180Error: If the operation fails.
         """
         self._validate_uint16(length, "length")
         if length > 508:
             raise ValueError("length must be at most 508")
         result = self._interface.read_data(length)
-        return (result[0], bytes(result[1]))
+        if result[0] < 0:
+            raise PN5180Error("read_data", result[0])
+        return bytes(result[1])
 
-    def switch_mode(self, mode: int, params: List[int]) -> int:
+    def switch_mode(self, mode: int, params: List[int]) -> None:
         """Switch mode.
 
         Args:
             mode: Operating mode (SwitchMode.STANDBY, LPCD, or AUTOCOLL).
             params: List of mode-specific parameters (each byte: 0-255).
 
-        Returns:
-            0 at success, < 0 at failure.
+        Raises:
+            PN5180Error: If the operation fails.
         """
         if mode not in (
             SwitchMode.STANDBY,
@@ -296,7 +343,9 @@ class PN5180:
             )
         for i, param in enumerate(params):
             self._validate_uint8(param, f"params[{i}]")
-        return cast(int, self._interface.switch_mode(mode, params))
+        result = cast(int, self._interface.switch_mode(mode, params))
+        if result < 0:
+            raise PN5180Error("switch_mode", result)
 
     def mifare_authenticate(
         self, key: bytes, key_type: int, block_addr: int, uid: int
@@ -310,7 +359,10 @@ class PN5180:
             uid: 32-bit card UID (0-2^32-1).
 
         Returns:
-            0=authenticated, 1=permission denied, 2=timeout, < 0 at failure.
+            Authentication result: 0=authenticated, 1=permission denied, 2=timeout.
+
+        Raises:
+            PN5180Error: If the operation fails with error < 0.
         """
         if len(key) != 6:
             raise ValueError("key must be exactly 6 bytes")
@@ -321,12 +373,15 @@ class PN5180:
             )
         self._validate_uint8(block_addr, "block_addr")
         self._validate_uint32(uid, "uid")
-        return cast(
+        result = cast(
             int,
             self._interface.mifare_authenticate(
                 list(key), key_type, block_addr, uid
             ),
         )
+        if result < 0:
+            raise PN5180Error("mifare_authenticate", result)
+        return result
 
     def epc_inventory(
         self,
@@ -334,7 +389,7 @@ class PN5180:
         select_command_final_bits: int,
         begin_round: bytes,
         timeslot_behavior: int,
-    ) -> int:
+    ) -> None:
         """Start EPC inventory algorithm.
 
         Args:
@@ -346,8 +401,8 @@ class PN5180:
                 - SINGLE_TIMESLOT (1): Algorithm pauses after one timeslot
                 - SINGLE_WITH_HANDLE (2): Req_Rn issued if valid tag response
 
-        Returns:
-            0 at success, < 0 at failure.
+        Raises:
+            PN5180Error: If the operation fails.
         """
         if len(select_command) > 39:
             raise ValueError("select_command must be at most 39 bytes")
@@ -364,7 +419,7 @@ class PN5180:
                 f"SINGLE_TIMESLOT (1), or SINGLE_WITH_HANDLE (2), "
                 f"got {timeslot_behavior}"
             )
-        return cast(
+        result = cast(
             int,
             self._interface.epc_inventory(
                 list(select_command),
@@ -373,65 +428,81 @@ class PN5180:
                 timeslot_behavior,
             ),
         )
+        if result < 0:
+            raise PN5180Error("epc_inventory", result)
 
-    def epc_resume_inventory(self) -> int:
+    def epc_resume_inventory(self) -> None:
         """Continue EPC inventory algorithm.
 
-        Returns:
-            0 at success, < 0 at failure.
+        Raises:
+            PN5180Error: If the operation fails.
         """
-        return cast(int, self._interface.epc_resume_inventory())
+        result = cast(int, self._interface.epc_resume_inventory())
+        if result < 0:
+            raise PN5180Error("epc_resume_inventory", result)
 
     def epc_retrieve_inventory_result_size(self) -> int:
         """Get result size from EPC algorithm.
 
         Returns:
-            Result size in bytes, < 0 at failure.
-        """
-        return cast(int, self._interface.epc_retrieve_inventory_result_size())
+            Result size in bytes.
 
-    def load_rf_config(self, tx_config: int, rx_config: int) -> int:
+        Raises:
+            PN5180Error: If the operation fails.
+        """
+        result = cast(int, self._interface.epc_retrieve_inventory_result_size())
+        if result < 0:
+            raise PN5180Error("epc_retrieve_inventory_result_size", result)
+        return result
+
+    def load_rf_config(self, tx_config: int, rx_config: int) -> None:
         """Load RF config settings for RX/TX.
 
         Args:
             tx_config: TX configuration index (byte: 0-255, see table 32).
             rx_config: RX configuration index (byte: 0-255, see table 32).
 
-        Returns:
-            0 at success, < 0 at failure.
+        Raises:
+            PN5180Error: If the operation fails.
         """
         self._validate_uint8(tx_config, "tx_config")
         self._validate_uint8(rx_config, "rx_config")
-        return cast(int, self._interface.load_rf_config(tx_config, rx_config))
+        result = cast(int, self._interface.load_rf_config(tx_config, rx_config))
+        if result < 0:
+            raise PN5180Error("load_rf_config", result)
 
     def rf_on(
         self,
         disable_collision_avoidance: bool = False,
         use_active_communication: bool = False,
-    ) -> int:
+    ) -> None:
         """Turn on RF field.
 
         Args:
             disable_collision_avoidance: Turn off collision avoidance for ISO/IEC 18092.
             use_active_communication: Use Active Communication mode.
 
-        Returns:
-            0 at success, < 0 at failure.
+        Raises:
+            PN5180Error: If the operation fails.
         """
         flags = 0
         if disable_collision_avoidance:
             flags |= 0x01
         if use_active_communication:
             flags |= 0x02
-        return cast(int, self._interface.rf_on(flags))
+        result = cast(int, self._interface.rf_on(flags))
+        if result < 0:
+            raise PN5180Error("rf_on", result)
 
-    def rf_off(self) -> int:
+    def rf_off(self) -> None:
         """Turn off RF field.
 
-        Returns:
-            0 at success, < 0 at failure.
+        Raises:
+            PN5180Error: If the operation fails.
         """
-        return cast(int, self._interface.rf_off())
+        result = cast(int, self._interface.rf_off())
+        if result < 0:
+            raise PN5180Error("rf_off", result)
 
     def is_irq_set(self) -> bool:
         """Is the IRQ pin set.
