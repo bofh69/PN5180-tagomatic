@@ -69,7 +69,7 @@ class PN5180:
     the SimpleRPC protocol.
 
     Args:
-        tty: The tty to communicate via.
+        tty: The tty device path to communicate via.
 
     Example:
         >>> from pn5180_tagomatic import PN5180
@@ -81,7 +81,7 @@ class PN5180:
         """Initialize the PN5180 reader.
 
         Args:
-            tty: The tty to communicate via.
+            tty: The tty device path to communicate via.
         """
         self._interface = Interface(tty)
 
@@ -518,6 +518,7 @@ class PN5180:
         return cast(bool, self._interface.wait_for_irq(timeout_ms))
 
     def close(self) -> None:
+        """Close the serial connection."""
         if self._interface:
             self._interface.close()
 
