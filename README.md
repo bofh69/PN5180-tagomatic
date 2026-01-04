@@ -52,17 +52,13 @@ See [sketch/README.md](sketch/README.md) for instructions on building and upload
 ## Usage
 
 ```python
-import serial
 from pn5180_tagomatic import PN5180
 
-# Open serial connection to the device
-ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
 
 # Create reader instance and use it
-with PN5180(ser) as reader:
-    # Reset the PN5180 module
+with PN5180("/dev/ttyACM0") as reader:
     reader.reset()
-    print("Device reset successfully")
+    versions = reader.read_eeprom(0x10, 6)
 ```
 
 ### Example Program
