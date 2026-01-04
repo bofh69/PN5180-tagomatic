@@ -8,8 +8,8 @@ This example program implements the 4.1 example in
 https://www.nxp.com/docs/en/application-note/AN12650.pdf
 
 Usage:
-    examples/iso_14443-a-get-uid.py /dev/ttyACM0
-    examples/iso_14443-a-get-uid.py COM3
+    examples/iso_14443-read-memory.py /dev/ttyACM0
+    examples/iso_14443-read-memory.py COM3
 """
 
 # WIP - This should be cleaned up and turned into proper functions
