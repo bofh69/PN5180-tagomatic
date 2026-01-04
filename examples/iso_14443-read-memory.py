@@ -18,7 +18,7 @@ Usage:
 import argparse
 import sys
 
-from pn5180_tagomatic import PN5180, Registers, MifareKeyType
+from pn5180_tagomatic import PN5180, MifareKeyType, Registers
 
 
 def turn_off_crc(reader):

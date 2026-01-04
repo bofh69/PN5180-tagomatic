@@ -20,6 +20,7 @@ import sys
 
 from pn5180_tagomatic import PN5180, Registers
 
+
 def turn_off_crc(reader):
     # Turn off CRC for TX
     reader.write_register_and_mask(Registers.CRC_TX_CONFIG, 0xFFFFFFFE)
