@@ -61,6 +61,52 @@ class TimeslotBehavior(IntEnum):
     SINGLE_WITH_HANDLE = 2  # Single timeslot with card handle if valid
 
 
+class Registers(IntEnum):
+    """PN5180 register addresses."""
+
+    SYSTEM_CONFIG = 0
+    IRQ_ENABLE = 1
+    IRQ_STATUS = 2
+    IRQ_CLEAR = 3
+    TRANSCEIVER_CONFIG = 4
+    PADCONFIG = 5
+    PADOUT = 7
+    TIMER0_STATUS = 8
+    TIMER1_STATUS = 9
+    TIMER2_STATUS = 10
+    TIMER0_RELOAD = 11
+    TIMER1_RELOAD = 12
+    TIMER2_RELOAD = 13
+    TIMER0_CONFIG = 14
+    TIMER1_CONFIG = 15
+    TIMER2_CONFIG = 16
+    RX_WAIT_CONFIG = 17
+    CRC_RX_CONFIG = 18
+    RX_STATUS = 19
+    TX_UNDERSHOOT_CONFIG = 20
+    TX_OVERSHOOT_CONFIG = 21
+    TX_DATA_MOD = 22
+    TX_WAIT_CONFIG = 23
+    TX_CONFIG = 24
+    CRC_TX_CONFIG = 25
+    SIGPRO_CONFIG = 26
+    SIGPRO_CM_CONFIG = 27
+    SIGPRO_RM_CONFIG = 28
+    RF_STATUS = 29
+    AGC_CONFIG = 30
+    AGC_VALUE = 31
+    RF_CONTROL_TX = 32
+    RF_CONTROL_TX_CLK = 33
+    RF_CONTROL_RX = 34
+    LD_CONTROL = 35
+    SYSTEM_STATUS = 36
+    TEMP_CONTROL = 37
+    CECK_CARD_RESULT = 38
+    DPC_CONFIG = 39
+    EMD_CONTROL = 40
+    ANT_CONTROL = 41
+
+
 class PN5180:
     """PN5180 RFID reader interface.
 

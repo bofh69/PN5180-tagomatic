@@ -8,6 +8,7 @@ from .pn5180 import (
     MifareKeyType,
     PN5180Error,
     RegisterOperation,
+    Registers,
     SwitchMode,
     TimeslotBehavior,
 )
@@ -18,6 +19,7 @@ __all__ = [
     "PN5180Error",
     "MifareKeyType",
     "RegisterOperation",
+    "Registers",
     "SwitchMode",
     "TimeslotBehavior",
     "__version__",
