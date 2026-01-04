@@ -776,10 +776,10 @@ void loop() {
     epc_resume_inventory, "epc_resume_inventory: Continue EPC inventory algorithm.",
     epc_retrieve_inventory_result_size, "epc_retrieve_inventory_result_size: Get result size from EPC algorithm.",
     load_rf_config, "load_rf_config: Load RF config settings for RX/TX",
-    rf_on, "rf_on: Turn on RF field. @flags: bit0 turns off collision avoidance for ISO/IEC 18092. bit1 use Active Communication mode. @returns: < 0 at errors.",
+    rf_on, "rf_on: Turn on RF field. @flags: bit0 turns off collision avoidance for ISO/IEC 18092. bit1 use Active Communication mode. @return: < 0 at errors.",
     rf_off, "rf_off: Turn off RF field.",
     is_irq_set, "is_irq_set: Is the IRQ pin set.",
-    wait_for_irq, "wait_for_irq: Wait up to a timeout value for the IRQ to be set. @timeout: time in ms to wait. @returns: true, if IRQ is set.");
+    wait_for_irq, "wait_for_irq: Wait up to a timeout value for the IRQ to be set. @timeout: time in ms to wait. @return: true, if IRQ is set.");
   // clang-format on
   set_color(led_value == RED ? GREEN : RED);
 }
