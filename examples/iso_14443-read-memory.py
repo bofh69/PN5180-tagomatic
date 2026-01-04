@@ -97,7 +97,7 @@ def main() -> int:
 
             if data_len < 1:
                 print("No card answered")
-                return
+                return 0
 
             # Line 10:
             data = reader.read_data(data_len)
