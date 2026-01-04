@@ -32,6 +32,22 @@ class RegisterOperation(IntEnum):
     AND = 3
 
 
+class SwitchMode(IntEnum):
+    """PN5180 operating modes."""
+
+    STANDBY = 0
+    LPCD = 1
+    AUTOCOLL = 2
+
+
+class TimeslotBehavior(IntEnum):
+    """EPC inventory timeslot behavior options."""
+
+    MAX_TIMESLOTS = 0  # Response contains max. number of time slots
+    SINGLE_TIMESLOT = 1  # Response contains only one timeslot
+    SINGLE_WITH_HANDLE = 2  # Single timeslot with card handle if valid
+
+
 class PN5180:
     """PN5180 RFID reader interface.
 
@@ -87,8 +103,8 @@ class PN5180:
         """Write to a PN5180 register.
 
         Args:
-            addr: Register address (uint8_t: 0-255).
-            value: 32 bit value to write (uint32_t: 0-2^32-1).
+            addr: Register address (byte: 0-255).
+            value: 32-bit value to write (0-2^32-1).
 
         Returns:
             0 at success, < 0 at failure.
@@ -101,8 +117,8 @@ class PN5180:
         """Write to a PN5180 register OR the old value.
 
         Args:
-            addr: Register address (uint8_t: 0-255).
-            value: 32 bit mask to OR (uint32_t: 0-2^32-1).
+            addr: Register address (byte: 0-255).
+            value: 32-bit mask to OR (0-2^32-1).
 
         Returns:
             0 at success, < 0 at failure.
@@ -115,8 +131,8 @@ class PN5180:
         """Write to a PN5180 register AND the old value.
 
         Args:
-            addr: Register address (uint8_t: 0-255).
-            value: 32 bit mask to AND (uint32_t: 0-2^32-1).
+            addr: Register address (byte: 0-255).
+            value: 32-bit mask to AND (0-2^32-1).
 
         Returns:
             0 at success, < 0 at failure.
@@ -132,9 +148,9 @@ class PN5180:
 
         Args:
             elements: List of (address, op, value/mask) tuples.
-                     address: uint8_t (0-255)
+                     address: byte (0-255)
                      op: RegisterOperation (1=SET, 2=OR, 3=AND)
-                     value/mask: uint32_t (0-2^32-1)
+                     value/mask: 32-bit value (0-2^32-1)
 
         Returns:
             0 at success, < 0 at failure.
@@ -157,11 +173,11 @@ class PN5180:
         """Read from a PN5180 register.
 
         Args:
-            addr: Register address (uint8_t: 0-255).
+            addr: Register address (byte: 0-255).
 
         Returns:
             Tuple with status (0 at success, < 0 at failure) and
-            32 bit register value.
+            32-bit register value.
         """
         self._validate_uint8(addr, "addr")
         return cast(Tuple[int, int], self._interface.read_register(addr))
@@ -170,11 +186,11 @@ class PN5180:
         """Read from multiple PN5180 registers.
 
         Args:
-            addrs: List of up to 18 register addresses (each uint8_t: 0-255).
+            addrs: List of up to 18 register addresses (each byte: 0-255).
 
         Returns:
             Tuple with status (0 at success, < 0 at failure) and
-            List of 32 bit register values.
+            List of 32-bit register values.
         """
         if len(addrs) > 18:
             raise ValueError("addrs must contain at most 18 addresses")
@@ -188,7 +204,7 @@ class PN5180:
         """Write to the EEPROM.
 
         Args:
-            addr: EEPROM address (uint8_t: 0-255).
+            addr: EEPROM address (byte: 0-255).
             values: Up to 255 bytes to write.
 
         Returns:
@@ -203,8 +219,8 @@ class PN5180:
         """Read from the EEPROM.
 
         Args:
-            addr: EEPROM address (uint8_t: 0-255).
-            length: Number of bytes to read (uint8_t: 0-255).
+            addr: EEPROM address (byte: 0-255).
+            length: Number of bytes to read (byte: 0-255).
 
         Returns:
             Tuple with status (0 at success, < 0 at failure) and
@@ -232,7 +248,7 @@ class PN5180:
         """Write to TX buffer and send it.
 
         Args:
-            bits: Number of valid bits in final byte (uint8_t: 0-255).
+            bits: Number of valid bits in final byte (byte: 0-255).
             values: Up to 260 bytes to send.
 
         Returns:
@@ -247,7 +263,7 @@ class PN5180:
         """Read from RX buffer.
 
         Args:
-            length: Number of bytes to read (max 508, uint16_t: 0-65535).
+            length: Number of bytes to read (max 508, 16-bit value: 0-65535).
 
         Returns:
             Tuple with status (0 at success, < 0 at failure) and
@@ -263,13 +279,21 @@ class PN5180:
         """Switch mode.
 
         Args:
-            mode: Mode to switch to (uint8_t: 0=Standby, 1=LPCD, 2=Autocoll).
-            params: List of mode-specific parameters (each uint8_t: 0-255).
+            mode: Operating mode (SwitchMode.STANDBY, LPCD, or AUTOCOLL).
+            params: List of mode-specific parameters (each byte: 0-255).
 
         Returns:
             0 at success, < 0 at failure.
         """
-        self._validate_uint8(mode, "mode")
+        if mode not in (
+            SwitchMode.STANDBY,
+            SwitchMode.LPCD,
+            SwitchMode.AUTOCOLL,
+        ):
+            raise ValueError(
+                f"mode must be SwitchMode.STANDBY (0), LPCD (1), "
+                f"or AUTOCOLL (2), got {mode}"
+            )
         for i, param in enumerate(params):
             self._validate_uint8(param, f"params[{i}]")
         return cast(int, self._interface.switch_mode(mode, params))
@@ -282,8 +306,8 @@ class PN5180:
         Args:
             key: 6 byte key.
             key_type: MifareKeyType.KEY_A (0x60) or MifareKeyType.KEY_B (0x61).
-            block_addr: Block address (uint8_t: 0-255).
-            uid: 32 bit card UID (uint32_t: 0-2^32-1).
+            block_addr: Block address (byte: 0-255).
+            uid: 32-bit card UID (0-2^32-1).
 
         Returns:
             0=authenticated, 1=permission denied, 2=timeout, < 0 at failure.
@@ -315,10 +339,12 @@ class PN5180:
 
         Args:
             select_command: Up to 39 bytes.
-            select_command_final_bits: Number of valid bits in final byte
-                                       (uint8_t: 0-255).
+            select_command_final_bits: Number of valid bits in final byte (byte: 0-255).
             begin_round: Exactly 3 bytes.
-            timeslot_behavior: Timeslot behavior value (uint8_t: 0-255).
+            timeslot_behavior: Timeslot behavior (TimeslotBehavior enum):
+                - MAX_TIMESLOTS (0): NextSlot issued until buffer full
+                - SINGLE_TIMESLOT (1): Algorithm pauses after one timeslot
+                - SINGLE_WITH_HANDLE (2): Req_Rn issued if valid tag response
 
         Returns:
             0 at success, < 0 at failure.
@@ -328,7 +354,16 @@ class PN5180:
         self._validate_uint8(select_command_final_bits, "select_command_final_bits")
         if len(begin_round) != 3:
             raise ValueError("begin_round must be exactly 3 bytes")
-        self._validate_uint8(timeslot_behavior, "timeslot_behavior")
+        if timeslot_behavior not in (
+            TimeslotBehavior.MAX_TIMESLOTS,
+            TimeslotBehavior.SINGLE_TIMESLOT,
+            TimeslotBehavior.SINGLE_WITH_HANDLE,
+        ):
+            raise ValueError(
+                f"timeslot_behavior must be TimeslotBehavior.MAX_TIMESLOTS (0), "
+                f"SINGLE_TIMESLOT (1), or SINGLE_WITH_HANDLE (2), "
+                f"got {timeslot_behavior}"
+            )
         return cast(
             int,
             self._interface.epc_inventory(
@@ -359,8 +394,8 @@ class PN5180:
         """Load RF config settings for RX/TX.
 
         Args:
-            tx_config: TX configuration index (uint8_t: 0-255, see table 32).
-            rx_config: RX configuration index (uint8_t: 0-255, see table 32).
+            tx_config: TX configuration index (byte: 0-255, see table 32).
+            rx_config: RX configuration index (byte: 0-255, see table 32).
 
         Returns:
             0 at success, < 0 at failure.
@@ -369,18 +404,25 @@ class PN5180:
         self._validate_uint8(rx_config, "rx_config")
         return cast(int, self._interface.load_rf_config(tx_config, rx_config))
 
-    def rf_on(self, flags: int) -> int:
+    def rf_on(
+        self,
+        disable_collision_avoidance: bool = False,
+        use_active_communication: bool = False,
+    ) -> int:
         """Turn on RF field.
 
         Args:
-            flags: Control flags (uint8_t: 0-255).
-                  bit0 turns off collision avoidance for ISO/IEC 18092.
-                  bit1 use Active Communication mode.
+            disable_collision_avoidance: Turn off collision avoidance for ISO/IEC 18092.
+            use_active_communication: Use Active Communication mode.
 
         Returns:
             0 at success, < 0 at failure.
         """
-        self._validate_uint8(flags, "flags")
+        flags = 0
+        if disable_collision_avoidance:
+            flags |= 0x01
+        if use_active_communication:
+            flags |= 0x02
         return cast(int, self._interface.rf_on(flags))
 
     def rf_off(self) -> int:
@@ -403,7 +445,7 @@ class PN5180:
         """Wait up to a timeout value for the IRQ to be set.
 
         Args:
-            timeout_ms: Time in milliseconds to wait (uint16_t: 0-65535).
+            timeout_ms: Time in milliseconds to wait (16-bit value: 0-65535).
 
         Returns:
             True if IRQ is set.
