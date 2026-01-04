@@ -6,8 +6,6 @@
 from enum import IntEnum
 from typing import Any, List, Tuple, cast
 
-from serial import Serial
-
 try:
     from simple_rpc import Interface  # type: ignore[import-untyped]
 except ImportError as e:
@@ -71,7 +69,7 @@ class PN5180:
     the SimpleRPC protocol.
 
     Args:
-        serial: An open pySerial Serial object connected to the device.
+        tty: The tty to communicate via.
 
     Example:
         >>> from pn5180_tagomatic import PN5180
@@ -79,14 +77,13 @@ class PN5180:
         >>> reader.reset()
     """
 
-    def __init__(self, serial: Serial) -> None:
+    def __init__(self, tty: str) -> None:
         """Initialize the PN5180 reader.
 
         Args:
-            serial: An open pySerial Serial object connected to the device.
+            tty: The tty to communicate via.
         """
-        self._serial = serial
-        self._interface = Interface(serial)
+        self._interface = Interface(tty)
 
     @staticmethod
     def _validate_uint8(value: int, name: str) -> None:
@@ -521,9 +518,8 @@ class PN5180:
         return cast(bool, self._interface.wait_for_irq(timeout_ms))
 
     def close(self) -> None:
-        """Close the serial connection."""
-        if self._serial and self._serial.is_open:
-            self._serial.close()
+        if self._interface:
+            self._interface.close()
 
     def __enter__(self) -> "PN5180":
         """Context manager entry."""
