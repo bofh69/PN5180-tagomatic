@@ -234,7 +234,7 @@ class PN5180:
         Args:
             select_command: Up to 39 bytes.
             select_command_final_bits: Number of valid bits in final byte.
-            begin_round: 3 byte array.
+            begin_round: Exactly 3 bytes.
             timeslot_behavior: Timeslot behavior value.
 
         Returns:
