@@ -218,7 +218,7 @@ static int write_register_and_mask(uint8_t addr, uint32_t value) {
 /**
  * Write multiple registers to the PN5180 NFC frontend.
  * The argument is a Vector of up to 42 elements.
- * Each element is (address, (operation, value/mask)).
+ * Each element is (address, operation, value/mask)).
  * Operation is:
  *  1 - Write Register
  *  2 - Write Register OR mask
@@ -226,7 +226,7 @@ static int write_register_and_mask(uint8_t addr, uint32_t value) {
  *
  * Returns 0 at success.
  */
-static int write_register_multiple(Vector<Tuple<uint8_t, Tuple<uint8_t, uint32_t>>>& elements) {
+static int write_register_multiple(Vector<Object<uint8_t, uint8_t, uint32_t>>& elements) {
   if (elements.size > 42) {
     log("Too many elements");
     return -1;
@@ -239,13 +239,13 @@ static int write_register_multiple(Vector<Tuple<uint8_t, Tuple<uint8_t, uint32_t
     buffer[1 + i * 6] = get<0>(elements[i]);
 
     // Operation:
-    buffer[2 + i * 6] = get<0>(get<1>(elements[i]));
+    buffer[2 + i * 6] = get<1>(elements[i]);
 
     // Value/mask:
-    buffer[3 + i * 6] = get<1>(get<1>(elements[i]));
-    buffer[4 + i * 6] = get<1>(get<1>(elements[i])) >> 8;
-    buffer[5 + i * 6] = get<1>(get<1>(elements[i])) >> 16;
-    buffer[6 + i * 6] = get<1>(get<1>(elements[i])) >> 24;
+    buffer[3 + i * 6] = get<2>(elements[i]);
+    buffer[4 + i * 6] = get<2>(elements[i]) >> 8;
+    buffer[5 + i * 6] = get<2>(elements[i]) >> 16;
+    buffer[6 + i * 6] = get<2>(elements[i]) >> 24;
   }
 
   auto retval = send_spi_data(buffer, 1 + 6 * elements.size);
@@ -259,10 +259,10 @@ static int write_register_multiple(Vector<Tuple<uint8_t, Tuple<uint8_t, uint32_t
 /**
  * Read register from the PN5180 NFC frontend.
  */
-static Tuple<int, uint32_t> read_register(uint8_t addr) {
+static Object<int, uint32_t> read_register(uint8_t addr) {
   uint8_t cmd[] = {PN5180_READ_REGISTER, addr};
   auto retval = send_spi_data(cmd, sizeof(cmd));
-  Tuple<int, uint32_t> result;
+  Object<int, uint32_t> result;
   if (retval) {
     log("Failed to send cmd");
     get<0>(result) = retval;
@@ -282,11 +282,11 @@ static Tuple<int, uint32_t> read_register(uint8_t addr) {
 /**
  * Read multiple registers from the PN5180 NFC frontend.
  * Reads from up to 18 addresses.
- * Returns a tuple of <returnval, Vector<values>>.
+ * Returns an Object of <returnval, Vector<values>>.
  * Returnval is 0 when everything went well.
  */
-static Tuple<int, Vector<uint32_t>> read_register_multiple(Vector<uint8_t>& addrs) {
-  Tuple<int, Vector<uint32_t>> result;
+static Object<int, Vector<uint32_t>> read_register_multiple(Vector<uint8_t>& addrs) {
+  Object<int, Vector<uint32_t>> result;
 
   if (addrs.size > 18) {
     log("Too many addresses");
@@ -313,6 +313,7 @@ static Tuple<int, Vector<uint32_t>> read_register_multiple(Vector<uint8_t>& addr
     get<0>(result) = retval;
     return result;
   }
+  get<1>(result).resize(addrs.size);
   for (int i = 0; i < addrs.size; ++i) {
     get<1>(result)[i] = buffer[i * 4 + 0] | (buffer[i * 4 + 1] << 8) | (buffer[i * 4 + 2] << 16) |
                         (buffer[i * 4 + 3] << 24);
@@ -351,8 +352,8 @@ static int16_t write_eeprom(uint8_t addr, Vector<uint8_t>& values) {
 
  * Negative numbers are errors.
  */
-static Tuple<int, Vector<uint8_t>> read_eeprom(uint8_t addr, uint8_t len) {
-  Tuple<int, Vector<uint8_t>> result;
+static Object<int, Vector<uint8_t>> read_eeprom(uint8_t addr, uint8_t len) {
+  Object<int, Vector<uint8_t>> result;
 
   uint8_t cmd[] = {PN5180_READ_EEPROM, addr, len};
   auto retval = send_spi_data(cmd, sizeof(cmd));
@@ -368,6 +369,7 @@ static Tuple<int, Vector<uint8_t>> read_eeprom(uint8_t addr, uint8_t len) {
     log("Failed to recv data");
     get<0>(result) = retval;
   }
+  get<1>(result).resize(len);
   for (size_t i = 0; i < len; ++i) {
     get<1>(result)[i] = response[i];
   }
@@ -434,9 +436,9 @@ static int16_t send_data(uint8_t bits, Vector<uint8_t>& values) {
 
  * Negative numbers are errors.
  */
-static Tuple<int, Vector<uint8_t>> read_data(uint16_t len) {
+static Object<int, Vector<uint8_t>> read_data(uint16_t len) {
   uint8_t response[508];
-  Tuple<int, Vector<uint8_t>> result;
+  Object<int, Vector<uint8_t>> result;
 
   if (len > sizeof(response)) {
     log("len too large");
@@ -458,6 +460,7 @@ static Tuple<int, Vector<uint8_t>> read_data(uint16_t len) {
     log("Failed to recv data");
     get<0>(result) = retval;
   }
+  get<1>(result).resize(len);
   for (size_t i = 0; i < len; ++i) {
     get<1>(result)[i] = response[i];
   }
@@ -756,20 +759,42 @@ void setup() {
 
 void loop() {
   // Handle SimpleRPC communication
-  interface(Serial, reset, "reset: Reset the PN5180 NFC frontend.", write_register,
-            "Write to a PN5180 register", write_register_or_mask,
-            "Write to a PN5180 register OR the old value", write_register_and_mask,
-            "Write to a PN5180 register AND the old value", write_register_multiple,
-            "Write to a PN5180 register", read_register, "Read from a PN5180 register",
-            read_register_multiple, "Read from a PN5180 register", write_eeprom,
-            "Write to the EEPROM", read_eeprom, "Read from the EEPROM", write_tx_data,
-            "Write to tx buffer", send_data, "Write to TX buffer and send it", read_data,
-            "Read from RX buffer", switch_mode, "Switch mode", mifare_authenticate,
-            "Authenticate to mifare card", epc_inventory, "Start EPC inventory algorithm",
-            epc_resume_inventory, "Continue EPC inventory algorithm",
-            epc_retrieve_inventory_result_size, "Get result size from EPC algorithm",
-            load_rf_config, "Load RF config settings for RX/TX", rf_on, "Turn on RF field.", rf_off,
-            "Turn off RF field.", is_irq_set, "Is the IRQ pin set?", wait_for_irq,
-            "Wait up to a timeout value for the IRQ to be set.");
-  set_color(led_value == RED ? GREEN : RED);
+  // clang-format off
+  interface(Serial,
+    reset, "reset: Reset the PN5180 NFC frontend.",
+    write_register, "write_register: Write to a PN5180 register. @addr: register address. @value: 32 bit value to write. @return: < 0 at failure.",
+    write_register_or_mask, "write_register_or_mask: Write to a PN5180 register OR the old value. @addr: register address. @value: 32 bit mask to OR. @return: 0 at success, < 0 at failure.",
+    write_register_and_mask, "write_register_and_mask: Write to a PN5180 register AND the old value. @addr: register address. @value: 32 bit mask to AND. @return: 0 at success, < 0 at failure.",
+    write_register_multiple, "write_register_multiple: Write to multiple PN5180 registers. @elements: Vector of (address, op, value/mask). op is 1, 2 or 3 for SET, OR and MASK. @return: 0 at success, < 0 at failure.",
+    read_register, "read_register: Read from a PN5180 register. @addr: register address. @return: Object with status (0 at success, < 0 at failure) and 32 bit register value.",
+    read_register_multiple, "read_register_multiple: Read from multiple PN5180 registers. @addrs: Vector of up to 18 register addresses. @return: Object with status (0 at success, < 0 at failure) and Vector of 32 bit register values.",
+    write_eeprom, "write_eeprom: Write to the EEPROM. @addr: EEPROM address. @values: Vector of up to 255 bytes to write. @return: 0 at success, < 0 at failure.",
+    read_eeprom, "read_eeprom: Read from the EEPROM. @addr: EEPROM address. @len: number of bytes to read. @return: Object with status (0 at success, < 0 at failure) and Vector of bytes read.",
+    write_tx_data, "write_tx_data: Write to tx buffer. @values: Vector of up to 260 bytes to write. @return: 0 at success, < 0 at failure.",
+    send_data, "send_data: Write to TX buffer and send it. @bits: number of valid bits in final byte. @values: Vector of up to 260 bytes to send. @return: 0 at success, < 0 at failure.",
+    read_data, "read_data: Read from RX buffer. @len: number of bytes to read (max 508). @return: Object with status (0 at success, < 0 at failure) and Vector of bytes read.",
+    switch_mode, "switch_mode: Switch mode. @mode: 0=Standby, 1=LPCD, 2=Autocoll. @params: Vector of mode-specific parameters. @return: 0 at success, < 0 at failure.",
+    mifare_authenticate, "mifare_authenticate: Authenticate to mifare card. @key: 6 byte key. @key_type: 0x60 for Key A, 0x61 for Key B. @block_addr: block address. @uid: 32 bit card UID. @return: 0=authenticated, 1=permission denied, 2=timeout, < 0 at failure.",
+    epc_inventory, "epc_inventory: Start EPC inventory algorithm. @select_command: Vector of up to 39 bytes. @select_command_final_bits: number of valid bits in final byte. @begin_round: 3 byte array. @timeslot_behavior: timeslot behavior value. @return: 0 at success, < 0 at failure.",
+    epc_resume_inventory, "epc_resume_inventory: Continue EPC inventory algorithm. @return: 0 at success, < 0 at failure.",
+    epc_retrieve_inventory_result_size, "epc_retrieve_inventory_result_size: Get result size from EPC algorithm. @return: result size in bytes, < 0 at failure.",
+    load_rf_config, "load_rf_config: Load RF config settings for RX/TX. @tx_config: TX configuration index (see table 32). @rx_config: RX configuration index (see table 32). @return: 0 at success, < 0 at failure.",
+    rf_on, "rf_on: Turn on RF field. @flags: bit0 turns off collision avoidance for ISO/IEC 18092. bit1 use Active Communication mode. @return: 0 at success, < 0 at failure.",
+    rf_off, "rf_off: Turn off RF field. @return: 0 at success, < 0 at failure.",
+    is_irq_set, "is_irq_set: Is the IRQ pin set. @return: true if IRQ is set.",
+    wait_for_irq, "wait_for_irq: Wait up to a timeout value for the IRQ to be set. @timeout: time in ms to wait. @return: true if IRQ is set.");
+  // clang-format on
+
+  static bool has_reset_after_disconnect = false;
+  if (!Serial) {
+    set_color(WEAK_RED);
+    if (!has_reset_after_disconnect) {
+      reset();
+      has_reset_after_disconnect = true;
+      delay(50);
+    }
+  } else {
+    set_color(led_value == RED ? GREEN : RED);
+    has_reset_after_disconnect = false;
+  }
 }

@@ -3,7 +3,22 @@
 
 """PN5180-tagomatic: USB based RFID reader with Python interface."""
 
-from .pn5180 import PN5180
+from .pn5180 import (
+    PN5180,
+    MifareKeyType,
+    PN5180Error,
+    RegisterOperation,
+    SwitchMode,
+    TimeslotBehavior,
+)
 
 __version__ = "0.1.0"
-__all__ = ["PN5180", "__version__"]
+__all__ = [
+    "PN5180",
+    "PN5180Error",
+    "MifareKeyType",
+    "RegisterOperation",
+    "SwitchMode",
+    "TimeslotBehavior",
+    "__version__",
+]
