@@ -27,10 +27,8 @@ class PN5180:
         serial: An open pySerial Serial object connected to the device.
 
     Example:
-        >>> import serial
         >>> from pn5180_tagomatic import PN5180
-        >>> ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)
-        >>> reader = PN5180(ser)
+        >>> reader = PN5180("/dev/ttyACM0")
         >>> reader.reset()
     """
 
