@@ -109,8 +109,7 @@ class PN5180:
             Tuple with status (0 at success, < 0 at failure) and
             32 bit register value.
         """
-        result = self._interface.read_register(addr)
-        return (result[0], result[1])
+        return cast(Tuple[int, int], self._interface.read_register(addr))
 
     def read_register_multiple(self, addrs: List[int]) -> Tuple[int, List[int]]:
         """Read from multiple PN5180 registers.
@@ -122,8 +121,9 @@ class PN5180:
             Tuple with status (0 at success, < 0 at failure) and
             Vector of 32 bit register values.
         """
-        result = self._interface.read_register_multiple(addrs)
-        return (result[0], result[1])
+        return cast(
+            Tuple[int, List[int]], self._interface.read_register_multiple(addrs)
+        )
 
     def write_eeprom(self, addr: int, values: List[int]) -> int:
         """Write to the EEPROM.
@@ -148,8 +148,7 @@ class PN5180:
             Tuple with status (0 at success, < 0 at failure) and
             Vector of bytes read.
         """
-        result = self._interface.read_eeprom(addr, length)
-        return (result[0], result[1])
+        return cast(Tuple[int, List[int]], self._interface.read_eeprom(addr, length))
 
     def write_tx_data(self, values: List[int]) -> int:
         """Write to tx buffer.
@@ -184,8 +183,7 @@ class PN5180:
             Tuple with status (0 at success, < 0 at failure) and
             Vector of bytes read.
         """
-        result = self._interface.read_data(length)
-        return (result[0], result[1])
+        return cast(Tuple[int, List[int]], self._interface.read_data(length))
 
     def switch_mode(self, mode: int, params: List[int]) -> int:
         """Switch mode.
