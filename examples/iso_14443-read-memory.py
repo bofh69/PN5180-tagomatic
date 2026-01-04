@@ -136,6 +136,7 @@ def main() -> int:
 
                 if cl > 0 and cl < uid_len and data[0] != cascade_tag:
                     print("Wrong cascade tag")
+                    return 0
 
                 if uid_len == cl:
                     uid.append(data[0])
