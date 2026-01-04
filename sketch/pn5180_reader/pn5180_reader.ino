@@ -313,6 +313,7 @@ static Object<int, Vector<uint32_t>> read_register_multiple(Vector<uint8_t>& add
     get<0>(result) = retval;
     return result;
   }
+  get<1>(result).resize(addrs.size);
   for (int i = 0; i < addrs.size; ++i) {
     get<1>(result)[i] = buffer[i * 4 + 0] | (buffer[i * 4 + 1] << 8) | (buffer[i * 4 + 2] << 16) |
                         (buffer[i * 4 + 3] << 24);
@@ -368,6 +369,7 @@ static Object<int, Vector<uint8_t>> read_eeprom(uint8_t addr, uint8_t len) {
     log("Failed to recv data");
     get<0>(result) = retval;
   }
+  get<1>(result).resize(len);
   for (size_t i = 0; i < len; ++i) {
     get<1>(result)[i] = response[i];
   }
@@ -458,6 +460,7 @@ static Object<int, Vector<uint8_t>> read_data(uint16_t len) {
     log("Failed to recv data");
     get<0>(result) = retval;
   }
+  get<1>(result).resize(len);
   for (size_t i = 0; i < len; ++i) {
     get<1>(result)[i] = response[i];
   }
@@ -788,6 +791,7 @@ void loop() {
     if (!has_reset_after_disconnect) {
       reset();
       has_reset_after_disconnect = true;
+      delay(50);
     }
   } else {
     set_color(led_value == RED ? GREEN : RED);
