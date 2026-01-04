@@ -153,7 +153,7 @@ def main() -> int:
                 elif cl == 1:
                     reader.send_data(0, bytes([0x95, 0x70]) + data)
                 elif cl == 2:
-                    reader.send_data(0, [0x97, 0x70] + data)
+                    reader.send_data(0, bytes([0x97, 0x70]) + data)
 
                 rx_status = reader.read_register(Registers.RX_STATUS)
                 data_len = rx_status & 511
