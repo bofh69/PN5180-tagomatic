@@ -781,5 +781,16 @@ void loop() {
     is_irq_set, "is_irq_set: Is the IRQ pin set. @return: true if IRQ is set.",
     wait_for_irq, "wait_for_irq: Wait up to a timeout value for the IRQ to be set. @timeout: time in ms to wait. @return: true if IRQ is set.");
   // clang-format on
-  set_color(led_value == RED ? GREEN : RED);
+
+  static bool has_reset_after_disconnect = false;
+  if (!Serial) {
+    set_color(WEAK_RED);
+    if (!has_reset_after_disconnect) {
+      reset();
+      has_reset_after_disconnect = true;
+    }
+  } else {
+    set_color(led_value == RED ? GREEN : RED);
+    has_reset_after_disconnect = false;
+  }
 }
