@@ -776,7 +776,7 @@ void loop() {
     epc_resume_inventory, "epc_resume_inventory: Continue EPC inventory algorithm. @return: 0 at success, < 0 at failure.",
     epc_retrieve_inventory_result_size, "epc_retrieve_inventory_result_size: Get result size from EPC algorithm. @return: result size in bytes, < 0 at failure.",
     load_rf_config, "load_rf_config: Load RF config settings for RX/TX. @tx_config: TX configuration index (see table 32). @rx_config: RX configuration index (see table 32). @return: 0 at success, < 0 at failure.",
-    rf_on, "rf_on: Turn on RF field. @flags: bit0 turns off collision avoidance for ISO/IEC 18092, bit1 use Active Communication mode. @return: 0 at success, < 0 at failure.",
+    rf_on, "rf_on: Turn on RF field. @flags: bit0 turns off collision avoidance for ISO/IEC 18092. bit1 use Active Communication mode. @return: 0 at success, < 0 at failure.",
     rf_off, "rf_off: Turn off RF field. @return: 0 at success, < 0 at failure.",
     is_irq_set, "is_irq_set: Is the IRQ pin set. @return: true if IRQ is set.",
     wait_for_irq, "wait_for_irq: Wait up to a timeout value for the IRQ to be set. @timeout: time in ms to wait. @return: true if IRQ is set.");
