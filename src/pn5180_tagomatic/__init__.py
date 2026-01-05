@@ -6,6 +6,8 @@
 from .pn5180 import (
     PN5180,
     ISO14443ACard,
+    ISO14443ACommand,
+    ISO15693Command,
     MifareKeyType,
     PN5180Error,
     PN5180Helper,
@@ -20,6 +22,8 @@ from .pn5180 import (
 __version__ = "0.1.0"
 __all__ = [
     "ISO14443ACard",
+    "ISO14443ACommand",
+    "ISO15693Command",
     "MifareKeyType",
     "PN5180",
     "PN5180Error",

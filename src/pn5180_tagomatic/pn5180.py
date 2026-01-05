@@ -109,6 +109,26 @@ class Registers(IntEnum):
     ANT_CONTROL = 41
 
 
+class ISO14443ACommand(IntEnum):
+    """ISO 14443-A protocol command bytes."""
+
+    ANTICOLLISION_CL1 = 0x93  # Anticollision/Select Cascade Level 1
+    ANTICOLLISION_CL2 = 0x95  # Anticollision/Select Cascade Level 2
+    ANTICOLLISION_CL3 = 0x97  # Anticollision/Select Cascade Level 3
+    ANTICOLLISION = 0x20  # Anticollision command parameter
+    READ = 0x30  # Read command
+    REQA = 0x26  # Request A
+    SELECT = 0x70  # Select command parameter
+    WRITE = 0xA2  # Read command
+    WUPA = 0x52  # Wake Up A
+
+
+class ISO15693Command(IntEnum):
+    """ISO 15693 protocol command bytes."""
+
+    INVENTORY = 0x01  # Inventory command
+
+
 class ISO14443ACard:
     """Represents a connected ISO 14443-A card.
 
@@ -154,7 +174,7 @@ class ISO14443ACard:
         for page in range(start_page, end_page, 4):
             # Send READ command
             memory_content = self._reader.send_and_receive(
-                0, bytes([0x30, page])
+                0, bytes([ISO14443ACommand.READ, page])
             )
 
             if len(memory_content) < 1:
@@ -195,10 +215,11 @@ class ISO14443ACard:
                 "read_mifare_memory requires a 4-byte UID (MIFARE Classic)"
             )
 
+        DEFAULT_KEY =  bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
         if key_a is None:
-            key_a = bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
+            key_a = DEFAULT_KEY
         if key_b is None:
-            key_b = bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
+            key_b = DEFAULT_KEY
 
         if len(key_a) != 6:
             raise ValueError("key_a must be exactly 6 bytes")
@@ -238,7 +259,7 @@ class ISO14443ACard:
 
             # Send READ command
             memory_content = self._reader.send_and_receive(
-                0, bytes([0x30, page])
+                0, bytes([ISO14443ACommand.READ, page])
             )
 
             if len(memory_content) < 1:
@@ -308,7 +329,7 @@ class PN5180RFSession:
         self._reader.change_mode_to_transceiver()
 
         # Send WUPA command (0x52)
-        self._reader.send_data(7, bytes([0x52]))
+        self._reader.send_data(7, bytes([ISO14443ACommand.WUPA]))
 
         # Wait for reception
         self._reader.wait_for_irq(1000)
@@ -331,11 +352,35 @@ class PN5180RFSession:
 
             # Send Anticollision CL X
             if cl == 0:
-                data = self._reader.send_and_receive(0, bytes([0x93, 0x20]))
+                data = self._reader.send_and_receive(
+                    0,
+                    bytes(
+                        [
+                            ISO14443ACommand.ANTICOLLISION_CL1,
+                            ISO14443ACommand.ANTICOLLISION,
+                        ]
+                    ),
+                )
             elif cl == 1:
-                data = self._reader.send_and_receive(0, bytes([0x95, 0x20]))
+                data = self._reader.send_and_receive(
+                    0,
+                    bytes(
+                        [
+                            ISO14443ACommand.ANTICOLLISION_CL2,
+                            ISO14443ACommand.ANTICOLLISION,
+                        ]
+                    ),
+                )
             elif cl == 2:
-                data = self._reader.send_and_receive(0, bytes([0x97, 0x20]))
+                data = self._reader.send_and_receive(
+                    0,
+                    bytes(
+                        [
+                            ISO14443ACommand.ANTICOLLISION_CL3,
+                            ISO14443ACommand.ANTICOLLISION,
+                        ]
+                    ),
+                )
 
             if len(data) < 5:
                 raise ValueError(
@@ -364,15 +409,36 @@ class PN5180RFSession:
             self._reader.turn_on_crc()
             if cl == 0:
                 _ = self._reader.send_and_receive(
-                    0, bytes([0x93, 0x70]) + data
+                    0,
+                    bytes(
+                        [
+                            ISO14443ACommand.ANTICOLLISION_CL1,
+                            ISO14443ACommand.SELECT,
+                        ]
+                    )
+                    + data,
                 )
             elif cl == 1:
                 _ = self._reader.send_and_receive(
-                    0, bytes([0x95, 0x70]) + data
+                    0,
+                    bytes(
+                        [
+                            ISO14443ACommand.ANTICOLLISION_CL2,
+                            ISO14443ACommand.SELECT,
+                        ]
+                    )
+                    + data,
                 )
             elif cl == 2:
                 _ = self._reader.send_and_receive(
-                    0, bytes([0x97, 0x70]) + data
+                    0,
+                    bytes(
+                        [
+                            ISO14443ACommand.ANTICOLLISION_CL3,
+                            ISO14443ACommand.SELECT,
+                        ]
+                    )
+                    + data,
                 )
 
             # Read SAK (Select Acknowledge) - already received
@@ -420,7 +486,16 @@ class PN5180RFSession:
         # Format: [Flags, Command, Mask Length]
         # 0x06 = Inventory flag (1 slot mode bit not set for 16 slots)
         # 0x01 = Inventory command
-        self._reader.send_data(0, bytes([0x06, 0x01, mask_length]))
+        self._reader.send_data(
+            0,
+            bytes(
+                [
+                    0x06,
+                    ISO15693Command.INVENTORY,
+                    mask_length,
+                ]
+            ),
+        )
 
         # Loop through all slots
         for _ in range(slots):
@@ -1108,7 +1183,7 @@ class PN5180:
         self.ll.change_mode_to_transceiver()
 
         # Send WUPA command (0x52)
-        self.ll.send_data(7, bytes([0x52]))
+        self.ll.send_data(7, bytes([ISO14443ACommand.WUPA]))
 
         # Wait for reception
         self.ll.wait_for_irq(1000)
@@ -1133,11 +1208,35 @@ class PN5180:
 
             # Send Anticollision CL X
             if cl == 0:
-                data = self.ll.send_and_receive(0, bytes([0x93, 0x20]))
+                data = self.ll.send_and_receive(
+                    0,
+                    bytes(
+                        [
+                            ISO14443ACommand.ANTICOLLISION_CL1,
+                            ISO14443ACommand.ANTICOLLISION,
+                        ]
+                    ),
+                )
             elif cl == 1:
-                data = self.ll.send_and_receive(0, bytes([0x95, 0x20]))
+                data = self.ll.send_and_receive(
+                    0,
+                    bytes(
+                        [
+                            ISO14443ACommand.ANTICOLLISION_CL2,
+                            ISO14443ACommand.ANTICOLLISION,
+                        ]
+                    ),
+                )
             elif cl == 2:
-                data = self.ll.send_and_receive(0, bytes([0x97, 0x20]))
+                data = self.ll.send_and_receive(
+                    0,
+                    bytes(
+                        [
+                            ISO14443ACommand.ANTICOLLISION_CL3,
+                            ISO14443ACommand.ANTICOLLISION,
+                        ]
+                    ),
+                )
 
             if len(data) < 5:
                 raise ValueError(
@@ -1165,11 +1264,38 @@ class PN5180:
             # Send SELECT command
             self.ll.turn_on_crc()
             if cl == 0:
-                _ = self.ll.send_and_receive(0, bytes([0x93, 0x70]) + data)
+                _ = self.ll.send_and_receive(
+                    0,
+                    bytes(
+                        [
+                            ISO14443ACommand.ANTICOLLISION_CL1,
+                            ISO14443ACommand.SELECT,
+                        ]
+                    )
+                    + data,
+                )
             elif cl == 1:
-                _ = self.ll.send_and_receive(0, bytes([0x95, 0x70]) + data)
+                _ = self.ll.send_and_receive(
+                    0,
+                    bytes(
+                        [
+                            ISO14443ACommand.ANTICOLLISION_CL2,
+                            ISO14443ACommand.SELECT,
+                        ]
+                    )
+                    + data,
+                )
             elif cl == 2:
-                _ = self.ll.send_and_receive(0, bytes([0x97, 0x70]) + data)
+                _ = self.ll.send_and_receive(
+                    0,
+                    bytes(
+                        [
+                            ISO14443ACommand.ANTICOLLISION_CL3,
+                            ISO14443ACommand.SELECT,
+                        ]
+                    )
+                    + data,
+                )
 
             # Read SAK (Select Acknowledge) - already received
             self.ll.turn_off_crc()
@@ -1233,7 +1359,9 @@ class PN5180:
                         break
 
             # Send READ command
-            memory_content = self.ll.send_and_receive(0, bytes([0x30, page]))
+            memory_content = self.ll.send_and_receive(
+                0, bytes([ISO14443ACommand.READ, page])
+            )
 
             if len(memory_content) < 1:
                 # No more data available
