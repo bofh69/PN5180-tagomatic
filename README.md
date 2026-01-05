@@ -5,8 +5,8 @@ SPDX-FileCopyrightText: 2025 PN5180-tagomatic contributors
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
-This is a work in progress. Few things described here actually works
-yet.
+**This is a work in progress. Some things described here doesn't work yet,
+and bug reports are not welcome at this time.**
 
 USB based RFID reader with Python interface
 
@@ -102,14 +102,13 @@ pytest
 
 ```bash
 # Linting
-ruff check src/ tests/
+make check
 
 # Formatting
-black src/ tests/
-ruff format src/ tests/
+make format
 
 # Type checking
-mypy src/
+make type-check
 ```
 
 ## License
@@ -129,4 +128,5 @@ Contributions are welcome! Please ensure that:
 
 ## Acknowledgments
 
-This project uses the PN5180 NFC Frontend from NXP Semiconductors.
+This project uses FastLED by Daniel Garcia et al.
+It also uses SimpleRPC by Jeroen F.J. Laros, Chris Flesher et al.
