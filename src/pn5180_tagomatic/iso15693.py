@@ -1,0 +1,165 @@
+# SPDX-FileCopyrightText: 2026 PN5180-tagomatic contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""ISO 15693 card implementation."""
+
+from __future__ import annotations
+
+from .constants import ISO15693Command
+from .proxy import PN5180Error, PN5180Helper
+
+
+class ISO15693Card:
+    """Represents a connected ISO 15693 card.
+
+    This class provides methods to interact with a card that has been
+    successfully connected via the SELECT command.
+    """
+
+    def __init__(self, reader: PN5180Helper, uid: bytes) -> None:
+        """Initialize ISO15693.
+
+        Args:
+            reader: The PN5180 reader instance.
+            uid: The card's UID.
+        """
+        self._reader = reader
+        self._uid = uid
+        self._block_size = -1
+        self._num_blocks = 32
+
+    @property
+    def uid(self) -> bytes:
+        """Get the card's UID."""
+        return self._uid
+
+    def read_memory(
+        self, start_block: int = 0, num_blocks: int = 255
+    ) -> bytes:
+        """Read memory from card.
+
+        Args:
+            start_block: Starting block number (default: 0).
+            num_blocks: Number of pages to read (default: 255).
+
+        Returns:
+            All read memory as a single bytes object.
+
+        Raises:
+            PN5180Error: If communication with the card fails.
+        """
+        self._reader.turn_on_crc()
+        self._reader.change_mode_to_transceiver()
+
+        memory_content = self._reader.send_and_receive_15693(
+            ISO15693Command.READ_MULTIPLE_BLOCKS,
+            bytes([start_block, num_blocks - 1]),
+        )
+
+        if len(memory_content) > 0 and memory_content[0] & 1:
+            memory_content += b"\0"
+            raise PN5180Error(
+                "Got error while reading memory", memory_content[1]
+            )
+        if len(memory_content) < 2:
+            # No more data available
+            return b""
+
+        return memory_content[1:]
+
+    def get_system_information(self) -> dict[str, int]:
+        """Get System information from card.
+
+        Returns:
+            The system info as a single bytes object.
+
+        Raises:
+            PN5180Error: If communication with the card fails.
+        """
+        self._reader.turn_on_crc()
+        self._reader.change_mode_to_transceiver()
+
+        system_info = self._reader.send_and_receive_15693(
+            ISO15693Command.GET_SYSTEM_INFORMATION,
+            b"",
+        )
+
+        if len(system_info) > 0 and system_info[0] & 1:
+            system_info += b"\0"
+            raise PN5180Error(
+                "Error getting system information", system_info[1]
+            )
+        if len(system_info) < 1:
+            system_info += b"\0"
+
+        pos = 9
+        result = {}
+        if system_info[0] & 1:
+            result["dsfid"] = system_info[pos]
+            pos += 1
+        if system_info[0] & 2:
+            result["afi"] = system_info[pos]
+            pos += 1
+        if system_info[0] & 4:
+            result["num_blocks"] = system_info[pos]
+            pos += 1
+            result["block_size"] = system_info[pos] + 1
+            pos += 1
+        if system_info[0] & 8:
+            pos += 1
+            result["ic_reference"] = system_info[pos]
+
+        return result
+
+    def write_memory(self, start_block: int, data: bytes) -> None:
+        """Write to a card's memory
+
+        Args:
+            start_block: Starting block number (default: 0).
+            data: <block size> bytes
+
+        Raises:
+            PN5180Error: If communication with the card fails.
+        """
+
+        if self._block_size < 0:
+            sys_info = self.get_system_information()
+            self._block_size = sys_info.get("block_size", 4)
+            self._num_blocks = sys_info.get("num_blocks", 32)
+
+        if len(data) % self._block_size != 0:
+            raise ValueError(
+                f"data isn't an even multiple of the block size ({self._block_size})"
+            )
+
+        self._reader.turn_on_crc()
+        self._reader.change_mode_to_transceiver()
+
+        num_blocks = len(data) // self._block_size
+
+        ##### This should work, but some cards are incompatible...
+        # result = self._reader.send_and_receive_15693(
+        #    ISO15693Command.WRITE_MULTIPLE_BLOCKS,
+        #    bytes([
+        #        start_block,
+        #        num_blocks - 1,
+        #        ]) + data)
+
+        for block in range(num_blocks):
+            result = self._reader.send_and_receive_15693(
+                ISO15693Command.WRITE_SINGLE_BLOCK,
+                bytes(
+                    [
+                        block + start_block,
+                    ]
+                )
+                + data[
+                    block * self._block_size : (block + 1) * self._block_size
+                ],
+            )
+            if len(result) < 1 or result[0] & 1:
+                result += b"\0\0"
+                raise PN5180Error(
+                    f"Got error response when writing to block {start_block + block}",
+                    result[1],
+                )

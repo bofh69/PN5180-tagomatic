@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 PN5180-tagomatic contributors
+# SPDX-FileCopyrightText: 2026 PN5180-tagomatic contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 """Low-level PN5180 proxy and helper classes."""
@@ -25,7 +25,7 @@ from .constants import (
 )
 
 
-class PN5180Proxy:
+class PN5180Proxy:  # pylint: disable=too-many-public-methods
     """Low-level PN5180 RFID reader interface.
 
     This class provides direct access to the PN5180 RFID reader's RPC methods
@@ -73,7 +73,7 @@ class PN5180Proxy:
         This method calls the reset function on the Arduino device,
         which performs a hardware reset of the PN5180 module.
         """
-        self._interface.reset()
+        self._interface.reset()  # pylint: disable=no-member
 
     def write_register(self, addr: int, value: int) -> None:
         """Write to a PN5180 register.
@@ -87,7 +87,12 @@ class PN5180Proxy:
         """
         self._validate_uint8(addr, "addr")
         self._validate_uint32(value, "value")
-        result = cast(int, self._interface.write_register(addr, value))
+        result = cast(
+            int,
+            self._interface.write_register(
+                addr, value
+            ),  # pylint: disable=no-member
+        )
         if result < 0:
             raise PN5180Error("write_register", result)
 
@@ -103,7 +108,12 @@ class PN5180Proxy:
         """
         self._validate_uint8(addr, "addr")
         self._validate_uint32(value, "value")
-        result = cast(int, self._interface.write_register_or_mask(addr, value))
+        result = cast(
+            int,
+            self._interface.write_register_or_mask(
+                addr, value
+            ),  # pylint: disable=no-member
+        )
         if result < 0:
             raise PN5180Error("write_register_or_mask", result)
 
@@ -120,7 +130,10 @@ class PN5180Proxy:
         self._validate_uint8(addr, "addr")
         self._validate_uint32(value, "value")
         result = cast(
-            int, self._interface.write_register_and_mask(addr, value)
+            int,
+            self._interface.write_register_and_mask(
+                addr, value
+            ),  # pylint: disable=no-member
         )
         if result < 0:
             raise PN5180Error("write_register_and_mask", result)
@@ -151,7 +164,9 @@ class PN5180Proxy:
                     f"OR (2), or AND (3)"
                 )
             self._validate_uint32(value, f"elements[{i}].value")
-        result = cast(int, self._interface.write_register_multiple(elements))
+        result = cast(
+            int, self._interface.write_register_multiple(elements)
+        )  # pylint: disable=no-member
         if result < 0:
             raise PN5180Error("write_register_multiple", result)
 
@@ -168,7 +183,9 @@ class PN5180Proxy:
             PN5180Error: If the operation fails.
         """
         self._validate_uint8(addr, "addr")
-        result = cast(tuple[int, int], self._interface.read_register(addr))
+        result = cast(
+            tuple[int, int], self._interface.read_register(addr)
+        )  # pylint: disable=no-member
         if result[0] < 0:
             raise PN5180Error("read_register", result[0])
         return result[1]
@@ -191,7 +208,9 @@ class PN5180Proxy:
             self._validate_uint8(addr, f"addrs[{i}]")
         result = cast(
             tuple[int, list[int]],
-            self._interface.read_register_multiple(addrs),
+            self._interface.read_register_multiple(
+                addrs
+            ),  # pylint: disable=no-member
         )
         if result[0] < 0:
             raise PN5180Error("read_register_multiple", result[0])
@@ -210,7 +229,9 @@ class PN5180Proxy:
         self._validate_uint8(addr, "addr")
         if len(values) > 255:
             raise ValueError("values must be at most 255 bytes")
-        result = cast(int, self._interface.write_eeprom(addr, list(values)))
+        result = cast(
+            int, self._interface.write_eeprom(addr, list(values))
+        )  # pylint: disable=no-member
         if result < 0:
             raise PN5180Error("write_eeprom", result)
 
@@ -229,7 +250,9 @@ class PN5180Proxy:
         """
         self._validate_uint8(addr, "addr")
         self._validate_uint8(length, "length")
-        result = self._interface.read_eeprom(addr, length)
+        result = self._interface.read_eeprom(
+            addr, length
+        )  # pylint: disable=no-member
         if result[0] < 0:
             raise PN5180Error("read_eeprom", result[0])
         return bytes(result[1])
@@ -245,7 +268,9 @@ class PN5180Proxy:
         """
         if len(values) > 260:
             raise ValueError("values must be at most 260 bytes")
-        result = cast(int, self._interface.write_tx_data(list(values)))
+        result = cast(
+            int, self._interface.write_tx_data(list(values))
+        )  # pylint: disable=no-member
         if result < 0:
             raise PN5180Error("write_tx_data", result)
 
@@ -262,7 +287,9 @@ class PN5180Proxy:
         self._validate_uint8(bits, "bits")
         if len(values) > 260:
             raise ValueError("values must be at most 260 bytes")
-        result = cast(int, self._interface.send_data(bits, list(values)))
+        result = cast(
+            int, self._interface.send_data(bits, list(values))
+        )  # pylint: disable=no-member
         if result < 0:
             raise PN5180Error("send_data", result)
 
@@ -281,7 +308,7 @@ class PN5180Proxy:
         self._validate_uint16(length, "length")
         if length > 508:
             raise ValueError("length must be at most 508")
-        result = self._interface.read_data(length)
+        result = self._interface.read_data(length)  # pylint: disable=no-member
         if result[0] < 0:
             raise PN5180Error("read_data", result[0])
         return bytes(result[1])
@@ -307,7 +334,9 @@ class PN5180Proxy:
             )
         for i, param in enumerate(params):
             self._validate_uint8(param, f"params[{i}]")
-        result = cast(int, self._interface.switch_mode(mode, params))
+        result = cast(
+            int, self._interface.switch_mode(mode, params)
+        )  # pylint: disable=no-member
         if result < 0:
             raise PN5180Error("switch_mode", result)
 
@@ -339,7 +368,7 @@ class PN5180Proxy:
         self._validate_uint32(uid, "uid")
         result = cast(
             int,
-            self._interface.mifare_authenticate(
+            self._interface.mifare_authenticate(  # pylint: disable=no-member
                 list(key), key_type, block_addr, uid
             ),
         )
@@ -387,7 +416,7 @@ class PN5180Proxy:
             )
         result = cast(
             int,
-            self._interface.epc_inventory(
+            self._interface.epc_inventory(  # pylint: disable=no-member
                 list(select_command),
                 select_command_final_bits,
                 list(begin_round),
@@ -403,7 +432,9 @@ class PN5180Proxy:
         Raises:
             PN5180Error: If the operation fails.
         """
-        result = cast(int, self._interface.epc_resume_inventory())
+        result = cast(
+            int, self._interface.epc_resume_inventory()
+        )  # pylint: disable=no-member
         if result < 0:
             raise PN5180Error("epc_resume_inventory", result)
 
@@ -417,7 +448,8 @@ class PN5180Proxy:
             PN5180Error: If the operation fails.
         """
         result = cast(
-            int, self._interface.epc_retrieve_inventory_result_size()
+            int,
+            self._interface.epc_retrieve_inventory_result_size(),  # pylint: disable=no-member
         )
         if result < 0:
             raise PN5180Error("epc_retrieve_inventory_result_size", result)
@@ -436,7 +468,10 @@ class PN5180Proxy:
         self._validate_uint8(tx_config, "tx_config")
         self._validate_uint8(rx_config, "rx_config")
         result = cast(
-            int, self._interface.load_rf_config(tx_config, rx_config)
+            int,
+            self._interface.load_rf_config(
+                tx_config, rx_config
+            ),  # pylint: disable=no-member
         )
         if result < 0:
             raise PN5180Error("load_rf_config", result)
@@ -460,7 +495,9 @@ class PN5180Proxy:
             flags |= 0x01
         if use_active_communication:
             flags |= 0x02
-        result = cast(int, self._interface.rf_on(flags))
+        result = cast(
+            int, self._interface.rf_on(flags)
+        )  # pylint: disable=no-member
         if result < 0:
             raise PN5180Error("rf_on", result)
 
@@ -470,7 +507,9 @@ class PN5180Proxy:
         Raises:
             PN5180Error: If the operation fails.
         """
-        result = cast(int, self._interface.rf_off())
+        result = cast(
+            int, self._interface.rf_off()
+        )  # pylint: disable=no-member
         if result < 0:
             raise PN5180Error("rf_off", result)
 
@@ -480,7 +519,9 @@ class PN5180Proxy:
         Returns:
             True if IRQ is set.
         """
-        return cast(bool, self._interface.is_irq_set())
+        return cast(
+            bool, self._interface.is_irq_set()
+        )  # pylint: disable=no-member
 
     def wait_for_irq(self, timeout_ms: int) -> bool:
         """Wait up to a timeout value for the IRQ to be set.
@@ -492,12 +533,17 @@ class PN5180Proxy:
             True if IRQ is set.
         """
         self._validate_uint16(timeout_ms, "timeout_ms")
-        return cast(bool, self._interface.wait_for_irq(timeout_ms))
+        return cast(
+            bool,
+            self._interface.wait_for_irq(
+                timeout_ms
+            ),  # pylint: disable=no-member
+        )
 
     def close(self) -> None:
         """Close the serial connection."""
         if self._interface:
-            self._interface.close()
+            self._interface.close()  # pylint: disable=no-member
 
     def __enter__(self) -> PN5180Proxy:
         """Context manager entry."""
@@ -548,9 +594,6 @@ class PN5180Helper(PN5180Proxy):
     def send_and_receive(self, bits: int, data: bytes) -> bytes:
         """Send data and receive response.
 
-        This is a common pattern that sends data, checks RX_STATUS register,
-        and reads the response if available.
-
         Args:
             bits: Number of valid bits in final byte (byte: 0-255).
             data: Up to 260 bytes to send.
@@ -561,7 +604,17 @@ class PN5180Helper(PN5180Proxy):
         Raises:
             PN5180Error: If communication fails.
         """
+        self.write_register(Registers.IRQ_CLEAR, 1)
+        self.write_register(Registers.IRQ_ENABLE, 1)
+
         self.send_data(bits, data)
+
+        if not self.wait_for_irq(100):
+            raise TimeoutError(f"No answer for {data[0]} request.")
+
+        self.write_register(Registers.IRQ_ENABLE, 0)
+        self.write_register(Registers.IRQ_CLEAR, 1)
+
         rx_status = self.read_register(Registers.RX_STATUS)
         data_len = rx_status & 511
 
@@ -569,3 +622,125 @@ class PN5180Helper(PN5180Proxy):
             return b""
 
         return self.read_data(data_len)
+
+    def send_15693_request(
+        self,  # pylint: disable=too-many-arguments
+        command: int,
+        parameters: bytes,
+        is_inventory: bool = False,
+        slow_rate: bool = False,
+        dual_sub_carrier: bool = False,
+        protocol_extension: bool = False,
+        to_selected: bool = False,
+        option_flag: bool = False,
+        uid: bytes | None = None,
+    ) -> None:
+        """Send ISO/IEC 15693 Request
+
+        Args:
+            command: The command's 8-bit value.
+            parameters: Up to 250 bytes to send.
+            is_inventory: Only set for the INVENTORY command.
+            slow_rate: Use low data rate.
+            dual_sub_carrier: Use dual sub-carrier
+            protocol_extension: Sets that bit in flags.
+            to_selected: Sets Select flag bit in flags.
+            option_flag: Sets that bit in flags.
+            uid: Sets the UID flag bit and includes the uid after command.
+
+        Raises:
+            PN5180Error: If communication fails.
+        """
+
+        self._validate_uint8(command, "command")
+        flags = 0
+        if dual_sub_carrier:
+            flags |= 1
+        if not slow_rate:
+            flags |= 2
+        if is_inventory:
+            flags |= 4
+        if protocol_extension:
+            flags |= 8
+        if to_selected:
+            if uid:
+                raise ValueError("Can't combine UID with to_selected")
+            flags |= 16
+        if uid:
+            flags |= 32
+        if option_flag:
+            flags |= 64
+
+        frame = bytes([flags, command])
+        if uid:
+            frame += uid[::-1]
+        frame += parameters
+
+        # print(f"Sending frame {frame.hex(' ')}")
+
+        self.send_data(0, frame)
+
+    def send_and_receive_15693(
+        self,  # pylint: disable=too-many-arguments
+        command: int,
+        parameters: bytes,
+        is_inventory: bool = False,
+        slow_rate: bool = False,
+        dual_sub_carrier: bool = False,
+        protocol_extension: bool = False,
+        to_selected: bool = False,
+        option_flag: bool = False,
+        uid: bytes | None = None,
+    ) -> bytes:
+        """Send ISO/IEC 15693 Request
+
+        Args:
+            command: The command's 8-bit value.
+            parameters: Up to 250 bytes to send.
+            is_inventory: Only set for the INVENTORY command.
+            slow_rate: Use low data rate.
+            dual_sub_carrier: Use dual sub-carrier
+            protocol_extension: Sets that bit in flags.
+            to_selected: Sets Select flag bit in flags.
+            option_flag: Sets that bit in flags.
+            uid: Sets the UID flag bit and includes the uid after command.
+
+        Returns:
+            Received data as bytes. Empty bytes() if no data was received.
+
+        Raises:
+            PN5180Error: If communication fails.
+        """
+        self.write_register(Registers.IRQ_CLEAR, 1)
+        self.write_register(Registers.IRQ_ENABLE, 1)
+        self.send_15693_request(
+            command,
+            parameters,
+            is_inventory=is_inventory,
+            slow_rate=slow_rate,
+            dual_sub_carrier=dual_sub_carrier,
+            protocol_extension=protocol_extension,
+            to_selected=to_selected,
+            option_flag=option_flag,
+            uid=uid,
+        )
+        if not self.wait_for_irq(200):
+            raise TimeoutError(f"No answer for 0x{command:02x} request.")
+
+        self.write_register(Registers.IRQ_ENABLE, 0)
+        self.write_register(Registers.IRQ_CLEAR, 1)
+
+        rx_status = self.read_register(Registers.RX_STATUS)
+        if rx_status:
+            how_many_bytes = rx_status & 511
+            if how_many_bytes > 0:
+                data = self.read_data(how_many_bytes)
+                if data[0] & 1:
+                    # TODO: Change to an unique exception, with data
+                    data += b"\0"
+                    raise PN5180Error(
+                        f"Got ISO-15693 error response for command 0x{command:x}",
+                        data[1],
+                    )
+                return data
+        return b""

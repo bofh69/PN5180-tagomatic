@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 PN5180-tagomatic contributors
+# SPDX-FileCopyrightText: 2026 PN5180-tagomatic contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 """Constants and enumerations for PN5180 RFID reader."""
@@ -115,4 +115,14 @@ class ISO14443ACommand(IntEnum):
 class ISO15693Command(IntEnum):
     """ISO 15693 protocol command bytes."""
 
-    INVENTORY = 0x01  # Inventory command
+    GET_SYSTEM_INFORMATION = 0x2B
+    GET_MULTIPLE_BLOCK_SECURITY_STATUS = 0x2C
+    INVENTORY = 0x01
+    LOCK_BLOCK = 0x22
+    READ_SINGLE_BLOCK = 0x20
+    READ_MULTIPLE_BLOCKS = 0x23
+    RESET_TO_READY = 0x26
+    SELECT = 0x25
+    STAY_QUIET = 0x02
+    WRITE_SINGLE_BLOCK = 0x21
+    WRITE_MULTIPLE_BLOCKS = 0x24
