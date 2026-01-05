@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 PN5180-tagomatic contributors
+# SPDX-FileCopyrightText: 2026 PN5180-tagomatic contributors
 # SPDX-License-Identifier: CC0-1.0
 
 version = 1
@@ -9,13 +9,13 @@ SPDX-PackageDownloadLocation = "https://github.com/bofh69/PN5180-tagomatic"
 [[annotations]]
 path = ["sketch/board.jpg"]
 precedence = "aggregate"
-SPDX-FileCopyrightText = "2025 PN5180-tagomatic contributors"
+SPDX-FileCopyrightText = "2026 PN5180-tagomatic contributors"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
 path = [".gitignore", ".clang-format"]
 precedence = "aggregate"
-SPDX-FileCopyrightText = "2025 PN5180-tagomatic contributors"
+SPDX-FileCopyrightText = "2026 PN5180-tagomatic contributors"
 SPDX-License-Identifier = "CC0-1.0"
 
 [[annotations]]

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2025 PN5180-tagomatic contributors
+# SPDX-FileCopyrightText: 2026 PN5180-tagomatic contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 """Example program demonstrating PN5180 reader usage.
