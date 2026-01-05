@@ -21,6 +21,25 @@
 #include <FastLED.h>
 #include <simpleRPC.h>
 
+// Error codes for negative return values
+enum ErrorCode {
+  ERR_DATA_LEN_TOO_LARGE = -1,
+  ERR_SEND_BUSY_CHECK_FIRST = -2,
+  ERR_SEND_BUSY_CHECK_SECOND = -3,
+  ERR_SEND_BUSY_CHECK_THIRD = -4,
+  ERR_RECV_BUSY_CHECK_FIRST = -5,
+  ERR_RECV_BUSY_CHECK_SECOND = -6,
+  ERR_RECV_BUSY_CHECK_THIRD = -7,
+  ERR_TOO_MANY_ELEMENTS = -8,
+  ERR_TOO_MANY_ADDRESSES = -9,
+  ERR_EEPROM_DATA_TOO_LARGE = -10,
+  ERR_LEN_TOO_LARGE = -11,
+  ERR_TOO_MANY_PARAMS = -12,
+  ERR_SELECT_COMMAND_TOO_LARGE = -13,
+  ERR_TX_DATA_TOO_LARGE = -14,
+  ERR_SEND_DATA_TOO_LARGE = -15
+};
+
 // SPI commands for PN5180:
 static const uint8_t PN5180_WRITE_REGISTER = 0x00;
 static const uint8_t PN5180_WRITE_REGISTER_OR_MASK = 0x01;
@@ -92,13 +111,13 @@ static int send_spi_data(const uint8_t* data, size_t data_len) {
   uint8_t buffer[256];
   if (data_len > sizeof(buffer)) {
     log("data_len too large");
-    return -1;
+    return ERR_DATA_LEN_TOO_LARGE;
   }
   memcpy(buffer, data, data_len);
 
   if (!wait_busy_is(LOW)) {
     log("First busy check failed");
-    return -2;
+    return ERR_SEND_BUSY_CHECK_FIRST;
   }
 
   digitalWrite(PN5180_NSS, LOW);
@@ -110,7 +129,7 @@ static int send_spi_data(const uint8_t* data, size_t data_len) {
   int retval = 0;
   if (!wait_busy_is(HIGH)) {
     log("Second busy check failed");
-    retval = -3;
+    retval = ERR_SEND_BUSY_CHECK_SECOND;
   }
 
   PN_SPI.endTransaction();
@@ -118,7 +137,7 @@ static int send_spi_data(const uint8_t* data, size_t data_len) {
 
   if (!retval && !wait_busy_is(LOW)) {
     log("Third busy check failed");
-    retval = -4;
+    retval = ERR_SEND_BUSY_CHECK_THIRD;
   }
 
   return retval;
@@ -129,7 +148,7 @@ static int recv_spi_data(uint8_t* buffer, size_t buffer_len) {
 
   if (!wait_busy_is(LOW)) {
     log("First busy check failed");
-    return -1;
+    return ERR_RECV_BUSY_CHECK_FIRST;
   }
 
   digitalWrite(PN5180_NSS, LOW);
@@ -141,7 +160,7 @@ static int recv_spi_data(uint8_t* buffer, size_t buffer_len) {
   int retval = 0;
   if (!wait_busy_is(HIGH)) {
     log("Second busy check failed");
-    retval = -2;
+    retval = ERR_RECV_BUSY_CHECK_SECOND;
   }
 
   PN_SPI.endTransaction();
@@ -149,7 +168,7 @@ static int recv_spi_data(uint8_t* buffer, size_t buffer_len) {
 
   if (!retval && !wait_busy_is(LOW)) {
     log("Third busy check failed");
-    retval = -3;
+    retval = ERR_RECV_BUSY_CHECK_THIRD;
   }
 
   return retval;
@@ -229,7 +248,7 @@ static int write_register_and_mask(uint8_t addr, uint32_t value) {
 static int write_register_multiple(Vector<Object<uint8_t, uint8_t, uint32_t>>& elements) {
   if (elements.size > 42) {
     log("Too many elements");
-    return -1;
+    return ERR_TOO_MANY_ELEMENTS;
   }
 
   uint8_t buffer[211];
@@ -290,7 +309,7 @@ static Object<int, Vector<uint32_t>> read_register_multiple(Vector<uint8_t>& add
 
   if (addrs.size > 18) {
     log("Too many addresses");
-    get<0>(result) = -1;
+    get<0>(result) = ERR_TOO_MANY_ADDRESSES;
     return result;
   }
 
@@ -330,7 +349,7 @@ static int16_t write_eeprom(uint8_t addr, Vector<uint8_t>& values) {
   uint8_t buffer[256];
   if (values.size > 255) {
     log("Too much data to write");
-    return -1;
+    return ERR_EEPROM_DATA_TOO_LARGE;
   }
 
   buffer[0] = PN5180_WRITE_EEPROM;
@@ -385,7 +404,7 @@ static int16_t write_tx_data(Vector<uint8_t>& values) {
   uint8_t buffer[261];
   if (values.size > 260) {
     log("Too much data to write");
-    return -1;
+    return ERR_TX_DATA_TOO_LARGE;
   }
 
   buffer[0] = PN5180_WRITE_TX_DATA;
@@ -413,7 +432,7 @@ static int16_t send_data(uint8_t bits, Vector<uint8_t>& values) {
   uint8_t buffer[262];
   if (values.size > 260) {
     log("Too much data to write");
-    return -1;
+    return ERR_SEND_DATA_TOO_LARGE;
   }
 
   buffer[0] = PN5180_SEND_DATA;
@@ -442,7 +461,7 @@ static Object<int, Vector<uint8_t>> read_data(uint16_t len) {
 
   if (len > sizeof(response)) {
     log("len too large");
-    get<0>(result) = -1;
+    get<0>(result) = ERR_LEN_TOO_LARGE;
     return result;
   }
 
@@ -486,7 +505,7 @@ static int switch_mode(uint8_t mode, Vector<uint8_t>& params) {
   uint8_t buffer[1 + 1 + 4];
   if (params.size > 4) {
     log("Too many params");
-    return -1;
+    return ERR_TOO_MANY_PARAMS;
   }
   buffer[0] = PN5180_SWITCH_MODE;
   buffer[1] = mode;
@@ -553,7 +572,7 @@ static int16_t epc_inventory(Vector<uint8_t>& select_command, uint8_t select_com
                              uint8_t begin_round[3], uint8_t timeslot_behavior) {
   if (select_command.size > 39) {
     log("Too large select_command");
-    return -1;
+    return ERR_SELECT_COMMAND_TOO_LARGE;
   }
 
   uint8_t buffer[47];

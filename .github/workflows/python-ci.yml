@@ -52,11 +52,8 @@ jobs:
           pip install black ruff
       
       - name: Check with Black
-        run: black --check src/ tests/
+        run: black -l 79 --check src/ tests/
       
-      - name: Check with Ruff format
-        run: ruff format --check src/ tests/
-  
   typecheck:
     name: Type Check with mypy
     runs-on: ubuntu-latest
