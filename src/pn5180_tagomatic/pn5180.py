@@ -201,11 +201,15 @@ class PN5180:
         """
         self._validate_uint8(addr, "addr")
         self._validate_uint32(value, "value")
-        result = cast(int, self._interface.write_register_and_mask(addr, value))
+        result = cast(
+            int, self._interface.write_register_and_mask(addr, value)
+        )
         if result < 0:
             raise PN5180Error("write_register_and_mask", result)
 
-    def write_register_multiple(self, elements: List[Tuple[int, int, int]]) -> None:
+    def write_register_multiple(
+        self, elements: List[Tuple[int, int, int]]
+    ) -> None:
         """Write to multiple PN5180 registers.
 
         Args:
@@ -268,7 +272,8 @@ class PN5180:
         for i, addr in enumerate(addrs):
             self._validate_uint8(addr, f"addrs[{i}]")
         result = cast(
-            Tuple[int, List[int]], self._interface.read_register_multiple(addrs)
+            Tuple[int, List[int]],
+            self._interface.read_register_multiple(addrs),
         )
         if result[0] < 0:
             raise PN5180Error("read_register_multiple", result[0])
@@ -416,7 +421,9 @@ class PN5180:
         self._validate_uint32(uid, "uid")
         result = cast(
             int,
-            self._interface.mifare_authenticate(list(key), key_type, block_addr, uid),
+            self._interface.mifare_authenticate(
+                list(key), key_type, block_addr, uid
+            ),
         )
         if result < 0:
             raise PN5180Error("mifare_authenticate", result)
@@ -445,7 +452,9 @@ class PN5180:
         """
         if len(select_command) > 39:
             raise ValueError("select_command must be at most 39 bytes")
-        self._validate_uint8(select_command_final_bits, "select_command_final_bits")
+        self._validate_uint8(
+            select_command_final_bits, "select_command_final_bits"
+        )
         if len(begin_round) != 3:
             raise ValueError("begin_round must be exactly 3 bytes")
         if timeslot_behavior not in (
@@ -489,7 +498,9 @@ class PN5180:
         Raises:
             PN5180Error: If the operation fails.
         """
-        result = cast(int, self._interface.epc_retrieve_inventory_result_size())
+        result = cast(
+            int, self._interface.epc_retrieve_inventory_result_size()
+        )
         if result < 0:
             raise PN5180Error("epc_retrieve_inventory_result_size", result)
         return result
@@ -506,7 +517,9 @@ class PN5180:
         """
         self._validate_uint8(tx_config, "tx_config")
         self._validate_uint8(rx_config, "rx_config")
-        result = cast(int, self._interface.load_rf_config(tx_config, rx_config))
+        result = cast(
+            int, self._interface.load_rf_config(tx_config, rx_config)
+        )
         if result < 0:
             raise PN5180Error("load_rf_config", result)
 
