@@ -57,8 +57,14 @@ from pn5180_tagomatic import PN5180
 
 # Create reader instance and use it
 with PN5180("/dev/ttyACM0") as reader:
-    reader.reset()
-    versions = reader.read_eeprom(0x10, 6)
+    versions = reader.ll.read_eeprom(0x10, 6)
+    with reader.start_session(0x00, 0x80) as session:
+        card = session.connect_iso14443a()
+        print(f"Reading from card {card.uid.hex(':')}")
+        if len(card.uid) == 4:
+            memory = card.read_mifare_memory()
+        else:
+            memory = card.read_memory()
 ```
 
 ### Example Program

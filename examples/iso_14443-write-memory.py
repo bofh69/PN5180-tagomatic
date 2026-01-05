@@ -4,11 +4,9 @@
 
 """Example program demonstrating PN5180 reader usage.
 
-This example program detects the UID of a single card in the RF field.
-
 Usage:
-    examples/iso_14443-a-get-uid.py /dev/ttyACM0
-    examples/iso_14443-a-get-uid.py COM3
+    examples/iso_14443-write-memory.py /dev/ttyACM0
+    examples/iso_14443-write-memory.py COM3
 """
 
 import argparse
@@ -20,7 +18,7 @@ from pn5180_tagomatic import PN5180
 def main() -> int:
     """Main entry point for the example program."""
     parser = argparse.ArgumentParser(
-        description="PN5180 RFID Reader Example - Get ISO 14443-A Card UID",
+        description="PN5180 RFID Reader Example - Write ISO 14443-A Card Memory",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
@@ -46,6 +44,22 @@ def main() -> int:
                 except ValueError as e:
                     print(f"Error: {e}")
                     return 1
+
+                # Write memory based on card type
+                if len(card.uid) == 4:
+                    # MIFARE Classic card
+                    raise NotImplemented("Not yet implemented")
+                else:
+                    # Other ISO 14443-A card (e.g., NTAG)
+                    card.write_memory(16//4, 0xEFBEADDE)
+                    memory = card.read_memory(16//4, 1)
+                    memory = memory[:4]
+                    # Display memory content
+                    ascii_values = "".join(
+                        chr(byte) if 32 <= byte <= 126 else "."
+                        for byte in memory
+                    )
+                    print(f"{memory.hex(' ')} {ascii_values}")
 
         return 0
 

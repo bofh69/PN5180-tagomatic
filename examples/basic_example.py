@@ -5,7 +5,7 @@
 """Example program demonstrating PN5180 reader usage.
 
 This example program opens a serial connection to the PN5180 reader
-device and demonstrates basic operations including resetting the device.
+device and demonstrates a basic PN5180 operation.
 
 Usage:
     python examples/basic_example.py /dev/ttyACM0
@@ -35,7 +35,7 @@ def main() -> int:
         with PN5180(args.tty) as reader:
             print("PN5180 reader initialized")
 
-            data = reader.read_eeprom(0x12, 2)
+            data = reader.ll.read_eeprom(0x12, 2)
             print("Read from EEPROM")
             print(f"Firmware version: {data[1]}.{data[0]}")
 
