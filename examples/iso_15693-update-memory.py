@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2025 PN5180-tagomatic contributors
+
+# SPDX-FileCopyrightText: 2026 PN5180-tagomatic contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Example program demonstrating PN5180 ISO 15693 inventory.
+"""Example program demonstrating PN5180 ISO 15693 operations.
 
-This example program finds the UID of ISO-15963 cards
+This example program finds the UID of ISO-15693 cards
 
 Usage:
-    examples/iso_15693_inventory.py /dev/ttyACM0
-    examples/iso_15693_inventory.py COM3
+    examples/iso_15693-update-memory.py /dev/ttyACM0
+    examples/iso_15693-update-memory.py COM3
 """
 
 import argparse
@@ -48,6 +49,18 @@ def main() -> int:
                     print(f"\nFound {len(uids)} tag(s):")
                     for i, uid in enumerate(uids, 1):
                         print(f"  {i}. UID: {uid.hex(':')}")
+
+                    card = session.connect_iso15693(uids[0])
+                    card.write_memory(4, b' Hello! ')
+
+                    memory = card.read_memory()
+                    for offset in range(0, len(memory), 16):
+                        chunk = memory[offset : offset + 16]
+                        ascii_values = "".join(
+                            chr(byte) if 32 <= byte <= 126 else "."
+                            for byte in chunk
+                        )
+                        print(f"({offset:03x}): {chunk.hex(' ')} {ascii_values}")
                 else:
                     print("\nNo tags found")
 

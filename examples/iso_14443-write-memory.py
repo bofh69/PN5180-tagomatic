@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2025 PN5180-tagomatic contributors
+# SPDX-FileCopyrightText: 2026 PN5180-tagomatic contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 """Example program demonstrating PN5180 reader usage.
@@ -48,7 +48,7 @@ def main() -> int:
                 # Write memory based on card type
                 if len(card.uid) == 4:
                     # MIFARE Classic card
-                    raise NotImplemented("Not yet implemented")
+                    raise NotImplementedError("Not yet implemented")
                 else:
                     # Other ISO 14443-A card (e.g., NTAG)
                     card.write_memory(16//4, 0xEFBEADDE)
