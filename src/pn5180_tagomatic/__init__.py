@@ -5,7 +5,9 @@
 
 from .pn5180 import (
     PN5180,
+    ISO14443ACard,
     MifareKeyType,
+    PN5180Communication,
     PN5180Error,
     RegisterOperation,
     Registers,
@@ -15,9 +17,11 @@ from .pn5180 import (
 
 __version__ = "0.1.0"
 __all__ = [
-    "PN5180",
-    "PN5180Error",
+    "ISO14443ACard",
     "MifareKeyType",
+    "PN5180",
+    "PN5180Communication",
+    "PN5180Error",
     "RegisterOperation",
     "Registers",
     "SwitchMode",

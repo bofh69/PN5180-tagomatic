@@ -3,8 +3,10 @@
 
 """PN5180 RFID reader class using SimpleRPC protocol."""
 
+from __future__ import annotations
+
 from enum import IntEnum
-from typing import Any, List, Tuple, cast
+from typing import Any, cast
 
 try:
     from simple_rpc import Interface  # type: ignore[import-untyped]
@@ -105,6 +107,295 @@ class Registers(IntEnum):
     DPC_CONFIG = 39
     EMD_CONTROL = 40
     ANT_CONTROL = 41
+
+
+class ISO14443ACard:
+    """Represents a connected ISO 14443-A card.
+
+    This class provides methods to interact with a card that has been
+    successfully connected via the ISO 14443-A anticollision protocol.
+    """
+
+    def __init__(self, reader: PN5180, uid: bytes) -> None:
+        """Initialize ISO14443ACard.
+
+        Args:
+            reader: The PN5180 reader instance.
+            uid: The card's UID.
+        """
+        self._reader = reader
+        self._uid = uid
+
+    @property
+    def uid(self) -> bytes:
+        """Get the card's UID."""
+        return self._uid
+
+    def read_memory(self) -> bytes:
+        """Read memory from a non-MIFARE Classic ISO 14443-A card.
+
+        This method reads memory pages from ISO 14443-A cards like NTAG
+        that don't require authentication.
+
+        Returns:
+            All read memory as a single bytes object.
+
+        Raises:
+            PN5180Error: If communication with the card fails.
+        """
+        self._reader.turn_on_crc()
+
+        memory_parts = []
+        for page in range(0, 255, 4):
+            # Send READ command
+            self._reader.send_data(0, bytes([0x30, page]))
+
+            rx_status = self._reader.read_register(Registers.RX_STATUS)
+            data_len = rx_status & 511
+
+            if data_len < 1:
+                # No more data available
+                break
+
+            memory_content = self._reader.read_data(data_len)
+            memory_parts.append(memory_content)
+
+        return b"".join(memory_parts)
+
+    def read_mifare_memory(
+        self,
+        key_a: bytes | None = None,
+        key_b: bytes | None = None,
+    ) -> bytes:
+        """Read memory from a MIFARE Classic card.
+
+        This method reads memory from MIFARE Classic cards that require
+        authentication. It tries authentication with both KEY_A and KEY_B.
+
+        Args:
+            key_a: 6-byte KEY_A (default: all 0xFF).
+            key_b: 6-byte KEY_B (default: all 0xFF).
+
+        Returns:
+            All read memory as a single bytes object.
+
+        Raises:
+            PN5180Error: If communication with the card fails.
+            ValueError: If UID is not 4 bytes (not MIFARE Classic).
+        """
+        if len(self._uid) != 4:
+            raise ValueError(
+                "read_mifare_memory requires a 4-byte UID (MIFARE Classic)"
+            )
+
+        if key_a is None:
+            key_a = bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
+        if key_b is None:
+            key_b = bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
+
+        if len(key_a) != 6:
+            raise ValueError("key_a must be exactly 6 bytes")
+        if len(key_b) != 6:
+            raise ValueError("key_b must be exactly 6 bytes")
+
+        self._reader.turn_on_crc()
+
+        # Convert UID to 32-bit integer for authentication
+        mifare_uid = (
+            self._uid[3] << 24
+            | self._uid[2] << 16
+            | self._uid[1] << 8
+            | self._uid[0]
+        )
+
+        memory_parts = []
+        for page in range(0, 255, 4):
+            # Try KEY A
+            retval_a = self._reader.mifare_authenticate(
+                key_a, MifareKeyType.KEY_A, page, mifare_uid
+            )
+            if retval_a == 2:  # timeout
+                break
+
+            # Try KEY B if KEY A failed
+            if retval_a != 0:
+                retval_b = self._reader.mifare_authenticate(
+                    key_b, MifareKeyType.KEY_B, page, mifare_uid
+                )
+                if retval_b == 2:  # timeout
+                    break
+                if retval_b != 0:
+                    # Both keys failed, stop reading
+                    break
+
+            # Send READ command
+            self._reader.send_data(0, bytes([0x30, page]))
+
+            rx_status = self._reader.read_register(Registers.RX_STATUS)
+            data_len = rx_status & 511
+
+            if data_len < 1:
+                # No more data available
+                break
+
+            memory_content = self._reader.read_data(data_len)
+            memory_parts.append(memory_content)
+
+        return b"".join(memory_parts)
+
+
+class PN5180Communication:
+    """Manages RF communication session.
+
+    This class handles the lifecycle of an RF communication session,
+    ensuring that the RF field is turned off when the session ends.
+    """
+
+    def __init__(self, reader: PN5180) -> None:
+        """Initialize PN5180Communication.
+
+        Args:
+            reader: The PN5180 reader instance.
+        """
+        self._reader = reader
+        self._active = True
+
+    def connect_iso14443a(self) -> ISO14443ACard:
+        """Connect to an ISO 14443-A card.
+
+        This method performs the ISO 14443-A anticollision protocol to
+        retrieve the card's UID and returns a card object.
+
+        Returns:
+            ISO14443ACard object representing the connected card.
+
+        Raises:
+            PN5180Error: If communication with the card fails.
+            ValueError: If the card's response is invalid.
+            TimeoutError: If no card responds.
+        """
+        if not self._active:
+            raise RuntimeError("Communication session is no longer active")
+
+        uid = self._get_iso14443a_uid()
+        return ISO14443ACard(self._reader, uid)
+
+    def _get_iso14443a_uid(self) -> bytes:
+        """Get the UID of an ISO 14443-A card using anticollision protocol.
+
+        Returns:
+            The card's UID as bytes.
+
+        Raises:
+            PN5180Error: If communication with the card fails.
+            ValueError: If the card's response is invalid.
+            TimeoutError: If no card responds.
+        """
+        self._reader.turn_off_crc()
+
+        # Clear all IRQs
+        self._reader.write_register(Registers.IRQ_CLEAR, 0x000FFFFF)
+
+        # Configure IRQ ENABLE register, turn on RX_IRQ_EN
+        self._reader.write_register_or_mask(Registers.IRQ_ENABLE, 1)
+
+        self._reader.change_mode_to_transceiver()
+
+        # Send WUPA command (0x52)
+        self._reader.send_data(7, bytes([0x52]))
+
+        # Wait for reception
+        self._reader.wait_for_irq(1000)
+
+        rx_status = self._reader.read_register(Registers.RX_STATUS)
+        data_len = rx_status & 511
+
+        if data_len < 1:
+            raise TimeoutError("No card answered to WUPA command")
+
+        # Read ATQA response
+        data = self._reader.read_data(data_len)
+        uid_len = data[0] // 64
+
+        uid = []
+        cascade_tag = -1
+
+        for cl in range(uid_len + 1):
+            # 0 == 4 bytes, 1 == 7 bytes, 2 == 10 bytes
+
+            # Send Anticollision CL X
+            if cl == 0:
+                self._reader.send_data(0, bytes([0x93, 0x20]))
+            elif cl == 1:
+                self._reader.send_data(0, bytes([0x95, 0x20]))
+            elif cl == 2:
+                self._reader.send_data(0, bytes([0x97, 0x20]))
+
+            rx_status = self._reader.read_register(Registers.RX_STATUS)
+            data_len = rx_status & 511
+
+            if data_len < 5:
+                raise ValueError(
+                    f"Incomplete UID response received, data_len={data_len}"
+                )
+
+            # Read anticollision response
+            data = self._reader.read_data(data_len)
+
+            # Verify BCC (Block Check Character)
+            bcc = data[0] ^ data[1] ^ data[2] ^ data[3]
+            if bcc != data[4]:
+                raise ValueError("Invalid BCC in UID response")
+
+            # Verify cascade tag
+            if 0 < cl < uid_len and data[0] != cascade_tag:
+                raise ValueError("Wrong cascade tag in UID response")
+
+            # Build UID
+            if uid_len == cl:
+                uid.append(data[0])
+            elif cl == 0:
+                cascade_tag = data[0]
+            uid.append(data[1])
+            uid.append(data[2])
+            uid.append(data[3])
+
+            # Send SELECT command
+            self._reader.turn_on_crc()
+            if cl == 0:
+                self._reader.send_data(0, bytes([0x93, 0x70]) + data)
+            elif cl == 1:
+                self._reader.send_data(0, bytes([0x95, 0x70]) + data)
+            elif cl == 2:
+                self._reader.send_data(0, bytes([0x97, 0x70]) + data)
+
+            rx_status = self._reader.read_register(Registers.RX_STATUS)
+            data_len = rx_status & 511
+
+            # Read SAK (Select Acknowledge)
+            data = self._reader.read_data(data_len)
+
+            self._reader.turn_off_crc()
+
+        return bytes(uid)
+
+    def close(self) -> None:
+        """Close the communication session and turn off RF field."""
+        if self._active:
+            self._reader.rf_off()
+            self._active = False
+
+    def __enter__(self) -> PN5180Communication:
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Context manager exit."""
+        self.close()
+
+    def __del__(self) -> None:
+        """Cleanup when object is destroyed."""
+        self.close()
 
 
 class PN5180:
@@ -208,7 +499,7 @@ class PN5180:
             raise PN5180Error("write_register_and_mask", result)
 
     def write_register_multiple(
-        self, elements: List[Tuple[int, int, int]]
+        self, elements: list[tuple[int, int, int]]
     ) -> None:
         """Write to multiple PN5180 registers.
 
@@ -250,12 +541,12 @@ class PN5180:
             PN5180Error: If the operation fails.
         """
         self._validate_uint8(addr, "addr")
-        result = cast(Tuple[int, int], self._interface.read_register(addr))
+        result = cast(tuple[int, int], self._interface.read_register(addr))
         if result[0] < 0:
             raise PN5180Error("read_register", result[0])
         return result[1]
 
-    def read_register_multiple(self, addrs: List[int]) -> List[int]:
+    def read_register_multiple(self, addrs: list[int]) -> list[int]:
         """Read from multiple PN5180 registers.
 
         Args:
@@ -272,7 +563,7 @@ class PN5180:
         for i, addr in enumerate(addrs):
             self._validate_uint8(addr, f"addrs[{i}]")
         result = cast(
-            Tuple[int, List[int]],
+            tuple[int, list[int]],
             self._interface.read_register_multiple(addrs),
         )
         if result[0] < 0:
@@ -368,7 +659,7 @@ class PN5180:
             raise PN5180Error("read_data", result[0])
         return bytes(result[1])
 
-    def switch_mode(self, mode: int, params: List[int]) -> None:
+    def switch_mode(self, mode: int, params: list[int]) -> None:
         """Switch mode.
 
         Args:
@@ -576,12 +867,251 @@ class PN5180:
         self._validate_uint16(timeout_ms, "timeout_ms")
         return cast(bool, self._interface.wait_for_irq(timeout_ms))
 
+    def start_comm(
+        self, tx_config: int, rx_config: int
+    ) -> PN5180Communication:
+        """Start an RF communication session.
+
+        This method loads the RF configuration and turns on the RF field,
+        then returns a PN5180Communication object that manages the session.
+        The RF field will be automatically turned off when the session ends.
+
+        Args:
+            tx_config: TX configuration index (byte: 0-255, see table 32).
+            rx_config: RX configuration index (byte: 0-255, see table 32).
+
+        Returns:
+            PN5180Communication object for managing the session.
+
+        Raises:
+            PN5180Error: If the operation fails.
+
+        Example:
+            >>> reader = PN5180("/dev/ttyACM0")
+            >>> with reader.start_comm(0x00, 0x80) as comm:
+            ...     card = comm.connect_iso14443a()
+            ...     uid = card.uid
+            ...     memory = card.read_memory()
+        """
+        self.load_rf_config(tx_config, rx_config)
+        self.rf_on()
+        return PN5180Communication(self)
+
+    def turn_off_crc(self) -> None:
+        """Turn off CRC for TX and RX.
+
+        Disables CRC calculation and verification for transmission and reception.
+        """
+        # Turn off CRC for TX
+        self.write_register_and_mask(Registers.CRC_TX_CONFIG, 0xFFFFFFFE)
+        # Turn off CRC for RX
+        self.write_register_and_mask(Registers.CRC_RX_CONFIG, 0xFFFFFFFE)
+
+    def turn_on_crc(self) -> None:
+        """Turn on CRC for TX and RX.
+
+        Enables CRC calculation and verification for transmission and reception.
+        """
+        # Turn on CRC for TX
+        self.write_register_or_mask(Registers.CRC_TX_CONFIG, 0x00000001)
+        # Turn on CRC for RX
+        self.write_register_or_mask(Registers.CRC_RX_CONFIG, 0x00000001)
+
+    def change_mode_to_transceiver(self) -> None:
+        """Change PN5180 mode to transceiver.
+
+        Sets the device to Idle state first, then initiates Transceiver state.
+        """
+        # Set Idle state
+        self.write_register_and_mask(Registers.SYSTEM_CONFIG, 0xFFFFFFF8)
+        # Initiates Transceiver state
+        self.write_register_or_mask(Registers.SYSTEM_CONFIG, 0x00000003)
+
+    def iso14443a_get_uid(self) -> bytes:
+        """Get the UID of an ISO 14443-A card.
+
+        This method implements the ISO 14443-A anticollision protocol to retrieve
+        the card's UID. It supports UIDs of 4, 7, and 10 bytes.
+
+        The reader must be initialized with ISO 14443-A configuration and RF field
+        must be on before calling this method.
+
+        Returns:
+            The card's UID as bytes.
+
+        Raises:
+            PN5180Error: If communication with the card fails.
+            ValueError: If the card's response is invalid (bad BCC, wrong
+                cascade tag, etc.).
+            TimeoutError: If no card responds.
+        """
+        self.turn_off_crc()
+
+        # Clear all IRQs
+        self.write_register(Registers.IRQ_CLEAR, 0x000FFFFF)
+
+        # Configure IRQ ENABLE register, turn on RX_IRQ_EN
+        self.write_register_or_mask(Registers.IRQ_ENABLE, 1)
+
+        self.change_mode_to_transceiver()
+
+        # Send WUPA command (0x52)
+        self.send_data(7, bytes([0x52]))
+
+        # Wait for reception
+        self.wait_for_irq(1000)
+
+        rx_status = self.read_register(Registers.RX_STATUS)
+        data_len = rx_status & 511
+
+        if data_len < 1:
+            raise TimeoutError("No card answered to WUPA command")
+
+        # Read ATQA response
+        data = self.read_data(data_len)
+        uid_len = data[0] // 64
+
+        uid = []
+        cascade_tag = -1
+
+        for cl in range(uid_len + 1):
+            # 0 == 4 bytes
+            # 1 == 7 bytes
+            # 2 == 10 bytes
+
+            # Send Anticollision CL X
+            if cl == 0:
+                self.send_data(0, bytes([0x93, 0x20]))
+            elif cl == 1:
+                self.send_data(0, bytes([0x95, 0x20]))
+            elif cl == 2:
+                self.send_data(0, bytes([0x97, 0x20]))
+
+            rx_status = self.read_register(Registers.RX_STATUS)
+            data_len = rx_status & 511
+
+            if data_len < 5:
+                raise ValueError(
+                    f"Incomplete UID response received, data_len={data_len}"
+                )
+
+            # Read anticollision response
+            data = self.read_data(data_len)
+
+            # Verify BCC (Block Check Character)
+            bcc = data[0] ^ data[1] ^ data[2] ^ data[3]
+            if bcc != data[4]:
+                raise ValueError("Invalid BCC in UID response")
+
+            # Verify cascade tag
+            if 0 < cl < uid_len and data[0] != cascade_tag:
+                raise ValueError("Wrong cascade tag in UID response")
+
+            # Build UID
+            if uid_len == cl:
+                uid.append(data[0])
+            elif cl == 0:
+                cascade_tag = data[0]
+            uid.append(data[1])
+            uid.append(data[2])
+            uid.append(data[3])
+
+            # Send SELECT command
+            self.turn_on_crc()
+            if cl == 0:
+                self.send_data(0, bytes([0x93, 0x70]) + data)
+            elif cl == 1:
+                self.send_data(0, bytes([0x95, 0x70]) + data)
+            elif cl == 2:
+                self.send_data(0, bytes([0x97, 0x70]) + data)
+
+            rx_status = self.read_register(Registers.RX_STATUS)
+            data_len = rx_status & 511
+
+            # Read SAK (Select Acknowledge)
+            data = self.read_data(data_len)
+
+            self.turn_off_crc()
+
+        return bytes(uid)
+
+    def iso14443a_read_memory(
+        self, uid: bytes, start_page: int = 0, max_pages: int = 255
+    ) -> dict[int, bytes]:
+        """Read memory from an ISO 14443-A card.
+
+        This method reads memory pages from an ISO 14443-A card. It supports
+        both MIFARE Classic cards (with authentication) and other ISO 14443-A
+        cards like NTAG.
+
+        The reader must be initialized with ISO 14443-A configuration, RF
+        field must be on, and the card must be selected before calling this
+        method.
+
+        Args:
+            uid: The card's UID (from iso14443a_get_uid).
+            start_page: Starting page number (default: 0).
+            max_pages: Maximum number of pages to read (default: 255).
+
+        Returns:
+            Dictionary mapping page numbers to their contents (bytes).
+
+        Raises:
+            PN5180Error: If communication with the card fails.
+        """
+        self.turn_on_crc()
+
+        memory_data: dict[int, bytes] = {}
+        is_mifare = len(uid) == 4
+
+        # For MIFARE Classic, convert UID to 32-bit integer
+        if is_mifare:
+            mifare_uid = uid[3] << 24 | uid[2] << 16 | uid[1] << 8 | uid[0]
+
+        for page in range(start_page, max_pages, 4):
+            # Try MIFARE authentication if needed
+            if is_mifare:
+                key = bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
+
+                # Try KEY A
+                retval_a = self.mifare_authenticate(
+                    key, MifareKeyType.KEY_A, page, mifare_uid
+                )
+                if retval_a == 2:  # timeout
+                    break
+
+                # Try KEY B if KEY A failed
+                if retval_a != 0:
+                    retval_b = self.mifare_authenticate(
+                        key, MifareKeyType.KEY_B, page, mifare_uid
+                    )
+                    if retval_b == 2:  # timeout
+                        break
+                    if retval_b != 0:
+                        # Both keys failed, stop reading
+                        break
+
+            # Send READ command
+            self.send_data(0, bytes([0x30, page]))
+
+            rx_status = self.read_register(Registers.RX_STATUS)
+            data_len = rx_status & 511
+
+            if data_len < 1:
+                # No more data available
+                break
+
+            memory_content = self.read_data(data_len)
+            memory_data[page] = memory_content
+
+        return memory_data
+
     def close(self) -> None:
         """Close the serial connection."""
         if self._interface:
             self._interface.close()
 
-    def __enter__(self) -> "PN5180":
+    def __enter__(self) -> PN5180:
         """Context manager entry."""
         return self
 

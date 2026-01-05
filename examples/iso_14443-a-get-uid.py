@@ -12,40 +12,16 @@ Usage:
     examples/iso_14443-a-get-uid.py COM3
 """
 
-# WIP - This should be cleaned up and turned into proper functions
-# with error handling...
-
 import argparse
 import sys
 
-from pn5180_tagomatic import PN5180, Registers
+from pn5180_tagomatic import PN5180
 
-def turn_off_crc(reader):
-    # Turn off CRC for TX
-    reader.write_register_and_mask(Registers.CRC_TX_CONFIG, 0xFFFFFFFE)
-
-    # Turn off CRC for RX
-    reader.write_register_and_mask(Registers.CRC_RX_CONFIG, 0xFFFFFFFE)
-
-def turn_on_crc(reader):
-    # Turn on CRC for TX
-    reader.write_register_or_mask(Registers.CRC_TX_CONFIG, 0x00000001)
-
-    # Turn on CRC for RX
-    reader.write_register_or_mask(Registers.CRC_RX_CONFIG, 0x00000001)
-
-
-def change_mode_to_transceiver(reader):
-    # Set Idle state
-    reader.write_register_and_mask(Registers.SYSTEM_CONFIG, 0xFFFFFFF8)
-
-    # Initiates Transceiver state
-    reader.write_register_or_mask(Registers.SYSTEM_CONFIG, 0x00000003)
 
 def main() -> int:
     """Main entry point for the example program."""
     parser = argparse.ArgumentParser(
-        description="PN5180 RFID Reader Example",
+        description="PN5180 RFID Reader Example - Get ISO 14443-A Card UID",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
@@ -59,127 +35,24 @@ def main() -> int:
         with PN5180(args.tty) as reader:
             print("PN5180 reader initialized")
 
-            # Line 1:
-            # ISO 14443-A 106
-            reader.load_rf_config(0x00, 0x80)
-
-            # Line 2:
-            reader.rf_on()
-
-            turn_off_crc(reader)
-
-            # Line 5:
-            # Clear all IRQs
-            reader.write_register(Registers.IRQ_CLEAR, 0x000FFFFF)
-
-            # Extra: Configure IRQ ENABLE register, turn on RX_IRQ_EN
-            reader.write_register_or_mask(Registers.IRQ_ENABLE, 1)
-
-            change_mode_to_transceiver(reader)
-
-            # Line 8:
-            # Send 0x26 (REQA command)
-            reader.send_data(7, [0x52])
-
-            # Line 9:
-            # Wait for reception
-            irq = reader.wait_for_irq(1000)
-            # print(f"IRQ value: {irq}")
-            # if irq:
-                # status = reader.read_register(Registers.IRQ_STATUS)
-                # print(f"IRQ_STATUS: {status:x}")
-
-            rx_status = reader.read_register(Registers.RX_STATUS)
-            data_len = rx_status & 511
-
-            if data_len < 1:
-                print("No card answered")
-                return
-
-            # Line 10:
-            data = reader.read_data(data_len)
-            uid_len = data[0] // 64
-            uid = []
-            cascade_tag = -1
-            for cl in range(uid_len + 1):
-
-                # 0 == 4 bytes
-                # 1 == 7 bytes
-                # 2 == 10 bytes
-
-                # Send Anticollision CL X
-                if cl == 0:
-                    reader.send_data(0, [0x93, 0x20])
-                elif cl == 1:
-                    reader.send_data(0, [0x95, 0x20])
-                elif cl == 2:
-                    reader.send_data(0, [0x97, 0x20])
-
-                rx_status = reader.read_register(Registers.RX_STATUS)
-                data_len = rx_status & 511
-
-                if data_len < 5:
-                    print(f"Didn't get complete UID response, data_len=={data_len}")
-                    return 0
-
-                # Line 10:
-                data = reader.read_data(data_len)
-
-                bcc = data[0] ^ data[1] ^ data[2] ^ data[3]
-
-                if bcc != data[4]:
-                    print("Invalid BCC, aborting")
-                    return 0
-
-                if cl > 0 and cl < uid_len and data[0] != cascade_tag:
-                    print("Wrong cascade tag")
-
-                if uid_len == cl:
-                    uid.append(data[0])
-                elif cl == 0:
-                    cascade_tag = data[0]
-                uid.append(data[1])
-                uid.append(data[2])
-                uid.append(data[3])
-
-                turn_on_crc(reader)
-                # change_mode_to_transceiver(reader)
-                if cl == 0:
-                    reader.send_data(0, bytes([0x93, 0x70]) + data)
-                elif cl == 1:
-                    reader.send_data(0, bytes([0x95, 0x70]) + data)
-                elif cl == 2:
-                    reader.send_data(0, [0x97, 0x70] + data)
-
-                rx_status = reader.read_register(Registers.RX_STATUS)
-                data_len = rx_status & 511
-
-                # Line 10:
-                data = reader.read_data(data_len)
-
-                # print("SAK:")
-                # print(data)
-                # more_uid = len(data) >= 1 and data[0] & 4
-                # TODO: Its really the SAK that says if we should
-                # continue, not the UID_LEN
-
-                turn_off_crc(reader)
-
-            print(f"UID: {bytes(uid).hex(':')}")
-
-            # print("Read data:")
-            # for i in range(data_len):
-            #      print(f"    {data[i]:02x}")
-
-            # Line 11:
-            reader.rf_off()
+            # Start communication with ISO 14443-A configuration
+            with reader.start_comm(0x00, 0x80) as comm:
+                # Connect to a card
+                try:
+                    card = comm.connect_iso14443a()
+                    print(f"UID: {card.uid.hex(':')}")
+                except TimeoutError as e:
+                    print(f"Error: {e}")
+                    return 1
+                except ValueError as e:
+                    print(f"Error: {e}")
+                    return 1
 
         return 0
 
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
-        raise e
-        # return 1
+        raise
 
 
 if __name__ == "__main__":
