@@ -185,6 +185,38 @@ class ISO14443ACard:
 
         return b"".join(memory_parts)
 
+    def write_memory(self, page: int, data: int) -> None:
+        """Write memory to a non-MIFARE Classic ISO 14443-A card.
+
+        This method writes memory pages from ISO 14443-A cards like NTAG
+        that don't require authentication.
+
+        Args:
+            page: Starting page number (default: 0).
+            data: 32-bit data to write to that page
+
+        Raises:
+            PN5180Error: If communication with the card fails.
+        """
+        self._reader.turn_on_crc()
+
+        # Send READ command
+        self._reader.send_data(
+            0,
+            bytes(
+                [
+                    ISO14443ACommand.WRITE,
+                    page,
+                    data & 255,
+                    (data >> 8) & 255,
+                    (data >> 16) & 255,
+                    data >> 24,
+                ]
+            ),
+        )
+
+        # TODO Check ACK status...
+
     def read_mifare_memory(
         self,
         key_a: bytes | None = None,
@@ -215,7 +247,7 @@ class ISO14443ACard:
                 "read_mifare_memory requires a 4-byte UID (MIFARE Classic)"
             )
 
-        DEFAULT_KEY =  bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
+        DEFAULT_KEY = bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
         if key_a is None:
             key_a = DEFAULT_KEY
         if key_b is None:
