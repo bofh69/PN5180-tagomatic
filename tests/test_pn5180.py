@@ -5,12 +5,10 @@
 
 from unittest.mock import MagicMock, Mock, call, patch
 
-import pytest
-
 from pn5180_tagomatic import PN5180, Registers
 
 
-@patch("pn5180_tagomatic.pn5180.Interface")
+@patch("pn5180_tagomatic.proxy.Interface")
 def test_pn5180_init(mock_interface_class: Mock) -> None:
     """Test PN5180 initialization."""
     tty = "/dev/ttyACM0"
@@ -19,7 +17,7 @@ def test_pn5180_init(mock_interface_class: Mock) -> None:
     mock_interface_class.assert_called_once_with(tty)
 
 
-@patch("pn5180_tagomatic.pn5180.Interface")
+@patch("pn5180_tagomatic.proxy.Interface")
 def test_pn5180_reset(mock_interface_class: Mock) -> None:
     """Test PN5180 reset method via ll."""
     tty = "/dev/ttyACM0"
@@ -32,7 +30,7 @@ def test_pn5180_reset(mock_interface_class: Mock) -> None:
     mock_interface.reset.assert_called_once()
 
 
-@patch("pn5180_tagomatic.pn5180.Interface")
+@patch("pn5180_tagomatic.proxy.Interface")
 def test_pn5180_close(mock_interface_class: Mock) -> None:
     """Test PN5180 close method."""
     tty = "/dev/ttyACM0"
@@ -45,7 +43,7 @@ def test_pn5180_close(mock_interface_class: Mock) -> None:
     mock_interface.close.assert_called_once()
 
 
-@patch("pn5180_tagomatic.pn5180.Interface")
+@patch("pn5180_tagomatic.proxy.Interface")
 def test_pn5180_context_manager(mock_interface_class: Mock) -> None:
     """Test PN5180 context manager."""
     tty = "/dev/ttyACM0"
@@ -58,7 +56,7 @@ def test_pn5180_context_manager(mock_interface_class: Mock) -> None:
     mock_interface.close.assert_called_once()
 
 
-@patch("pn5180_tagomatic.pn5180.Interface")
+@patch("pn5180_tagomatic.proxy.Interface")
 def test_turn_off_crc(mock_interface_class: Mock) -> None:
     """Test turn_off_crc method via ll."""
     tty = "/dev/ttyACM0"
@@ -75,7 +73,7 @@ def test_turn_off_crc(mock_interface_class: Mock) -> None:
     assert calls[1] == call(Registers.CRC_RX_CONFIG, 0xFFFFFFFE)
 
 
-@patch("pn5180_tagomatic.pn5180.Interface")
+@patch("pn5180_tagomatic.proxy.Interface")
 def test_turn_on_crc(mock_interface_class: Mock) -> None:
     """Test turn_on_crc method via ll."""
     tty = "/dev/ttyACM0"
@@ -92,7 +90,7 @@ def test_turn_on_crc(mock_interface_class: Mock) -> None:
     assert calls[1] == call(Registers.CRC_RX_CONFIG, 0x00000001)
 
 
-@patch("pn5180_tagomatic.pn5180.Interface")
+@patch("pn5180_tagomatic.proxy.Interface")
 def test_change_mode_to_transceiver(mock_interface_class: Mock) -> None:
     """Test change_mode_to_transceiver method via ll."""
     tty = "/dev/ttyACM0"
@@ -112,7 +110,7 @@ def test_change_mode_to_transceiver(mock_interface_class: Mock) -> None:
     )
 
 
-@patch("pn5180_tagomatic.pn5180.Interface")
+@patch("pn5180_tagomatic.proxy.Interface")
 def test_start_session(mock_interface_class: Mock) -> None:
     """Test start_session method."""
     tty = "/dev/ttyACM0"
@@ -133,7 +131,7 @@ def test_start_session(mock_interface_class: Mock) -> None:
     mock_interface.rf_off.assert_called_once()
 
 
-@patch("pn5180_tagomatic.pn5180.Interface")
+@patch("pn5180_tagomatic.proxy.Interface")
 def test_communication_context_manager(mock_interface_class: Mock) -> None:
     """Test PN5180RFSession context manager."""
     tty = "/dev/ttyACM0"
@@ -151,7 +149,7 @@ def test_communication_context_manager(mock_interface_class: Mock) -> None:
     mock_interface.rf_off.assert_called_once()
 
 
-@patch("pn5180_tagomatic.pn5180.Interface")
+@patch("pn5180_tagomatic.proxy.Interface")
 def test_connect_iso14443a(mock_interface_class: Mock) -> None:
     """Test connecting to ISO 14443-A card."""
     tty = "/dev/ttyACM0"
@@ -187,7 +185,7 @@ def test_connect_iso14443a(mock_interface_class: Mock) -> None:
         assert card.uid == bytes([0x01, 0x02, 0x03, 0x04])
 
 
-@patch("pn5180_tagomatic.pn5180.Interface")
+@patch("pn5180_tagomatic.proxy.Interface")
 def test_card_read_memory(mock_interface_class: Mock) -> None:
     """Test reading memory from non-MIFARE card."""
     tty = "/dev/ttyACM0"
@@ -231,7 +229,7 @@ def test_card_read_memory(mock_interface_class: Mock) -> None:
         assert memory[16:32] == bytes([0xBB] * 16)
 
 
-@patch("pn5180_tagomatic.pn5180.Interface")
+@patch("pn5180_tagomatic.proxy.Interface")
 def test_card_read_mifare_memory(mock_interface_class: Mock) -> None:
     """Test reading memory from MIFARE Classic card."""
     tty = "/dev/ttyACM0"

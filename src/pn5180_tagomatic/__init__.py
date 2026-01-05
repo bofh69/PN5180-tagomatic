@@ -3,21 +3,20 @@
 
 """PN5180-tagomatic: USB based RFID reader with Python interface."""
 
-from .pn5180 import (
-    PN5180,
-    ISO14443ACard,
+from .constants import (
     ISO14443ACommand,
     ISO15693Command,
     MifareKeyType,
     PN5180Error,
-    PN5180Helper,
-    PN5180Proxy,
-    PN5180RFSession,
     RegisterOperation,
     Registers,
     SwitchMode,
     TimeslotBehavior,
 )
+from .iso14443a import ISO14443ACard
+from .pn5180 import PN5180
+from .proxy import PN5180Helper, PN5180Proxy
+from .session import PN5180RFSession
 
 __version__ = "0.1.0"
 __all__ = [
