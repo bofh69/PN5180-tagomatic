@@ -33,10 +33,10 @@ def main() -> int:
             print("PN5180 reader initialized")
 
             # Start communication with ISO 14443-A configuration
-            with reader.start_comm(0x00, 0x80) as comm:
+            with reader.start_session(0x00, 0x80) as session:
                 # Connect to a card
                 try:
-                    card = comm.connect_iso14443a()
+                    card = session.connect_iso14443a()
                     print(f"UID: {card.uid.hex(':')}")
                 except TimeoutError as e:
                     print(f"Error: {e}")
@@ -45,7 +45,7 @@ def main() -> int:
                     print(f"Error: {e}")
                     return 1
 
-                # Read memory based on card type
+                # Write memory based on card type
                 if len(card.uid) == 4:
                     # MIFARE Classic card
                     raise NotImplemented("Not yet implemented")

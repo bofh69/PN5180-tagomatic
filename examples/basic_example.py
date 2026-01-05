@@ -5,7 +5,7 @@
 """Example program demonstrating PN5180 reader usage.
 
 This example program opens a serial connection to the PN5180 reader
-device and demonstrates basic operations including resetting the device.
+device and demonstrates a basic PN5180 operation.
 
 Usage:
     python examples/basic_example.py /dev/ttyACM0

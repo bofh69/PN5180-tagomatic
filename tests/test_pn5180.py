@@ -266,8 +266,8 @@ def test_iso14443a_read_memory_mifare(mock_interface_class: Mock) -> None:
 
 
 @patch("pn5180_tagomatic.pn5180.Interface")
-def test_start_comm(mock_interface_class: Mock) -> None:
-    """Test start_comm method."""
+def test_start_session(mock_interface_class: Mock) -> None:
+    """Test start_session method."""
     tty = "/dev/ttyACM0"
     mock_interface = MagicMock()
     mock_interface.load_rf_config.return_value = 0
@@ -276,7 +276,7 @@ def test_start_comm(mock_interface_class: Mock) -> None:
     mock_interface_class.return_value = mock_interface
 
     reader = PN5180(tty)
-    comm = reader.start_comm(0x00, 0x80)
+    comm = reader.start_session(0x00, 0x80)
 
     mock_interface.load_rf_config.assert_called_once_with(0x00, 0x80)
     mock_interface.rf_on.assert_called_once()
@@ -297,7 +297,7 @@ def test_communication_context_manager(mock_interface_class: Mock) -> None:
     mock_interface_class.return_value = mock_interface
 
     reader = PN5180(tty)
-    with reader.start_comm(0x00, 0x80) as comm:
+    with reader.start_session(0x00, 0x80) as comm:
         assert comm is not None
 
     # RF should be turned off automatically
@@ -335,7 +335,7 @@ def test_connect_iso14443a(mock_interface_class: Mock) -> None:
     ]
 
     reader = PN5180(tty)
-    with reader.start_comm(0x00, 0x80) as comm:
+    with reader.start_session(0x00, 0x80) as comm:
         card = comm.connect_iso14443a()
         assert card.uid == bytes([0x01, 0x02, 0x03, 0x04])
 
@@ -376,7 +376,7 @@ def test_card_read_memory(mock_interface_class: Mock) -> None:
     ]
 
     reader = PN5180(tty)
-    with reader.start_comm(0x00, 0x80) as comm:
+    with reader.start_session(0x00, 0x80) as comm:
         card = comm.connect_iso14443a()
         memory = card.read_memory()
         assert len(memory) == 32  # 2 pages * 16 bytes each
@@ -419,7 +419,7 @@ def test_card_read_mifare_memory(mock_interface_class: Mock) -> None:
     ]
 
     reader = PN5180(tty)
-    with reader.start_comm(0x00, 0x80) as comm:
+    with reader.start_session(0x00, 0x80) as comm:
         card = comm.connect_iso14443a()
         memory = card.read_mifare_memory()
         assert len(memory) == 16

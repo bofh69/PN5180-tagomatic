@@ -4,8 +4,7 @@
 
 """Example program demonstrating PN5180 reader usage.
 
-This example program implements the 4.1 example in
-https://www.nxp.com/docs/en/application-note/AN12650.pdf
+This example program detects the UID of a single card in the RF field.
 
 Usage:
     examples/iso_14443-a-get-uid.py /dev/ttyACM0
@@ -36,10 +35,10 @@ def main() -> int:
             print("PN5180 reader initialized")
 
             # Start communication with ISO 14443-A configuration
-            with reader.start_comm(0x00, 0x80) as comm:
+            with reader.start_session(0x00, 0x80) as session:
                 # Connect to a card
                 try:
-                    card = comm.connect_iso14443a()
+                    card = session.connect_iso14443a()
                     print(f"UID: {card.uid.hex(':')}")
                 except TimeoutError as e:
                     print(f"Error: {e}")

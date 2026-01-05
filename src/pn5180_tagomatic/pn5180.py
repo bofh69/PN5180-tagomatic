@@ -498,7 +498,7 @@ class PN5180RFSession:
             PN5180Error: If communication fails.
 
         Example:
-            >>> with reader.start_comm(0x0D, 0x8D) as session:
+            >>> with reader.start_session(0x0D, 0x8D) as session:
             ...     uids = session.iso15693_inventory()
             ...     for uid in uids:
             ...         print(f"Found UID: {uid.hex(':')}")
@@ -1142,7 +1142,7 @@ class PN5180:
         >>> from pn5180_tagomatic import PN5180
         >>> with PN5180("/dev/ttyACM0") as reader:
         ...     # High-level API (recommended)
-        ...     with reader.start_comm(0x00, 0x80) as comm:
+        ...     with reader.start_session(0x00, 0x80) as comm:
         ...         card = comm.connect_iso14443a()
         ...         memory = card.read_memory()
         ...
@@ -1158,7 +1158,7 @@ class PN5180:
         """
         self.ll = PN5180Helper(tty)
 
-    def start_comm(self, tx_config: int, rx_config: int) -> PN5180RFSession:
+    def start_session(self, tx_config: int, rx_config: int) -> PN5180RFSession:
         """Start an RF communication session.
 
         This method loads the RF configuration and turns on the RF field,
@@ -1177,7 +1177,7 @@ class PN5180:
 
         Example:
             >>> reader = PN5180("/dev/ttyACM0")
-            >>> with reader.start_comm(0x00, 0x80) as comm:
+            >>> with reader.start_session(0x00, 0x80) as comm:
             ...     card = comm.connect_iso14443a()
             ...     uid = card.uid
             ...     memory = card.read_memory()

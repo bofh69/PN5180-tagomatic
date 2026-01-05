@@ -4,8 +4,7 @@
 
 """Example program demonstrating PN5180 ISO 15693 inventory.
 
-This example program implements the 4.2 example in
-https://www.nxp.com/docs/en/application-note/AN12650.pdf
+This example program finds the UID of ISO-15963 cards
 
 Usage:
     examples/iso_15693_inventory.py /dev/ttyACM0
@@ -38,7 +37,7 @@ def main() -> int:
             # Start ISO 15693 communication session
             # 0x0D = TX config for ISO 15693
             # 0x8D = RX config for ISO 15693
-            with reader.start_comm(0x0D, 0x8D) as session:
+            with reader.start_session(0x0D, 0x8D) as session:
                 print("Performing ISO 15693 inventory...")
 
                 # Perform inventory
