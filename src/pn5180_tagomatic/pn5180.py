@@ -380,6 +380,80 @@ class PN5180RFSession:
 
         return bytes(uid)
 
+    def iso15693_inventory(
+        self, slots: int = 16, mask_length: int = 0
+    ) -> list[bytes]:
+        """Perform ISO 15693 inventory to find tags.
+
+        This method implements the ISO 15693 inventory protocol to discover
+        tags in the RF field. It uses 16 slots by default for anticollision.
+
+        Args:
+            slots: Number of slots for anticollision (default: 16).
+                Must be 16 for mask_length 0.
+            mask_length: Length of mask (default: 0).
+
+        Returns:
+            List of UIDs found (bytes objects).
+
+        Raises:
+            PN5180Error: If communication fails.
+
+        Example:
+            >>> with reader.start_comm(0x0D, 0x8D) as session:
+            ...     uids = session.iso15693_inventory()
+            ...     for uid in uids:
+            ...         print(f"Found UID: {uid.hex(':')}")
+        """
+        if not self._active:
+            raise RuntimeError("Communication session is no longer active")
+
+        uids = []
+
+        # Clear all IRQs
+        self._reader.write_register(Registers.IRQ_CLEAR, 0x000FFFFF)
+
+        # Set to transceiver mode
+        self._reader.change_mode_to_transceiver()
+
+        # Send ISO 15693 Inventory command
+        # Format: [Flags, Command, Mask Length]
+        # 0x06 = Inventory flag (1 slot mode bit not set for 16 slots)
+        # 0x01 = Inventory command
+        self._reader.send_data(0, bytes([0x06, 0x01, mask_length]))
+
+        # Loop through all slots
+        for _ in range(slots):
+            # Read response if available
+            rx_status = self._reader.read_register(Registers.RX_STATUS)
+            if rx_status:
+                how_many_bytes = rx_status & 511
+                if how_many_bytes > 0:
+                    data = self._reader.read_data(how_many_bytes)
+                    # Check if no error flag (bit 0 clear)
+                    if len(data) > 0 and (data[0] & 1) == 0:
+                        # UID is in bytes 10:1:-1 (reversed)
+                        if len(data) >= 10:
+                            uid = bytes(data[9:1:-1])
+                            uids.append(uid)
+
+            # Prepare for next slot
+            # Clear bit 7, 8 and 11 - only send EOF for next command
+            self._reader.write_register_and_mask(
+                Registers.TX_CONFIG, 0xFFFFFB3F
+            )
+
+            # Set state to TRANSCEIVE
+            self._reader.change_mode_to_transceiver()
+
+            # # Clear IRQs
+            # self._reader.write_register(Registers.IRQ_CLEAR, 0x000FFFFF)
+
+            # Send EOF
+            self._reader.send_data(0, b"")
+
+        return uids
+
     def close(self) -> None:
         """Close the communication session and turn off RF field."""
         if self._active:
