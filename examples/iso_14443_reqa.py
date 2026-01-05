@@ -37,54 +37,54 @@ def main() -> int:
 
             # Line 1:
             # ISO 14443-A 106
-            reader.load_rf_config(0x00, 0x80)
+            reader.ll.load_rf_config(0x00, 0x80)
 
             # Line 2:
-            reader.rf_on()
+            reader.ll.rf_on()
 
             # Line 3:
             # Turn off CRC for TX
-            reader.write_register_and_mask(Registers.CRC_TX_CONFIG, 0xFFFFFFFE)
+            reader.ll.write_register_and_mask(Registers.CRC_TX_CONFIG, 0xFFFFFFFE)
 
             # Line 4:
             # Turn off CRC for RX
-            reader.write_register_and_mask(Registers.CRC_RX_CONFIG, 0xFFFFFFFE)
+            reader.ll.write_register_and_mask(Registers.CRC_RX_CONFIG, 0xFFFFFFFE)
 
             # Line 5:
             # Clear all IRQs
-            reader.write_register(Registers.IRQ_CLEAR, 0x000FFFFF)
+            reader.ll.write_register(Registers.IRQ_CLEAR, 0x000FFFFF)
 
             # Extra: Configure IRQ ENABLE register, turn on RX_IRQ_EN
-            reader.write_register_or_mask(Registers.IRQ_ENABLE, 1)
+            reader.ll.write_register_or_mask(Registers.IRQ_ENABLE, 1)
 
             # Line 6:
             # Set Idle state
-            reader.write_register_and_mask(Registers.SYSTEM_CONFIG, 0xFFFFFFF8)
+            reader.ll.write_register_and_mask(Registers.SYSTEM_CONFIG, 0xFFFFFFF8)
 
             # Line 7:
             # Initiates Transceiver state
-            reader.write_register_or_mask(Registers.SYSTEM_CONFIG, 0x00000003)
+            reader.ll.write_register_or_mask(Registers.SYSTEM_CONFIG, 0x00000003)
 
             # Line 8:
             # Send 0x26 (REQA command)
-            reader.send_data(7, [0x26])
+            reader.ll.send_data(7, [0x26])
 
             # Line 9:
             # Wait for reception
-            irq = reader.wait_for_irq(1000)
+            irq = reader.ll.wait_for_irq(1000)
             print(f"IRQ value: {irq}")
             if irq:
-                status = reader.read_register(Registers.IRQ_STATUS)
+                status = reader.ll.read_register(Registers.IRQ_STATUS)
                 print(f"IRQ_STATUS: {status:x}")
 
             # Line 10:
-            data = reader.read_data(2)
+            data = reader.ll.read_data(2)
             print("Read data:")
             # ATQA response:
             print(f"  0x{data[0]:02x} 0x{data[1]:02x}")
 
             # Line 11:
-            reader.rf_off()
+            reader.ll.rf_off()
 
         return 0
 

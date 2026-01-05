@@ -21,13 +21,13 @@ def test_pn5180_init(mock_interface_class: Mock) -> None:
 
 @patch("pn5180_tagomatic.pn5180.Interface")
 def test_pn5180_reset(mock_interface_class: Mock) -> None:
-    """Test PN5180 reset method."""
+    """Test PN5180 reset method via ll."""
     tty = "/dev/ttyACM0"
     mock_interface = MagicMock()
     mock_interface_class.return_value = mock_interface
 
     reader = PN5180(tty)
-    reader.reset()
+    reader.ll.reset()
 
     mock_interface.reset.assert_called_once()
 
@@ -60,14 +60,14 @@ def test_pn5180_context_manager(mock_interface_class: Mock) -> None:
 
 @patch("pn5180_tagomatic.pn5180.Interface")
 def test_turn_off_crc(mock_interface_class: Mock) -> None:
-    """Test turn_off_crc method."""
+    """Test turn_off_crc method via ll."""
     tty = "/dev/ttyACM0"
     mock_interface = MagicMock()
     mock_interface.write_register_and_mask.return_value = 0
     mock_interface_class.return_value = mock_interface
 
     reader = PN5180(tty)
-    reader.turn_off_crc()
+    reader.ll.turn_off_crc()
 
     assert mock_interface.write_register_and_mask.call_count == 2
     calls = mock_interface.write_register_and_mask.call_args_list
@@ -77,14 +77,14 @@ def test_turn_off_crc(mock_interface_class: Mock) -> None:
 
 @patch("pn5180_tagomatic.pn5180.Interface")
 def test_turn_on_crc(mock_interface_class: Mock) -> None:
-    """Test turn_on_crc method."""
+    """Test turn_on_crc method via ll."""
     tty = "/dev/ttyACM0"
     mock_interface = MagicMock()
     mock_interface.write_register_or_mask.return_value = 0
     mock_interface_class.return_value = mock_interface
 
     reader = PN5180(tty)
-    reader.turn_on_crc()
+    reader.ll.turn_on_crc()
 
     assert mock_interface.write_register_or_mask.call_count == 2
     calls = mock_interface.write_register_or_mask.call_args_list
@@ -94,7 +94,7 @@ def test_turn_on_crc(mock_interface_class: Mock) -> None:
 
 @patch("pn5180_tagomatic.pn5180.Interface")
 def test_change_mode_to_transceiver(mock_interface_class: Mock) -> None:
-    """Test change_mode_to_transceiver method."""
+    """Test change_mode_to_transceiver method via ll."""
     tty = "/dev/ttyACM0"
     mock_interface = MagicMock()
     mock_interface.write_register_and_mask.return_value = 0
@@ -102,7 +102,7 @@ def test_change_mode_to_transceiver(mock_interface_class: Mock) -> None:
     mock_interface_class.return_value = mock_interface
 
     reader = PN5180(tty)
-    reader.change_mode_to_transceiver()
+    reader.ll.change_mode_to_transceiver()
 
     mock_interface.write_register_and_mask.assert_called_once_with(
         Registers.SYSTEM_CONFIG, 0xFFFFFFF8
@@ -288,7 +288,7 @@ def test_start_comm(mock_interface_class: Mock) -> None:
 
 @patch("pn5180_tagomatic.pn5180.Interface")
 def test_communication_context_manager(mock_interface_class: Mock) -> None:
-    """Test PN5180Communication context manager."""
+    """Test PN5180RFSession context manager."""
     tty = "/dev/ttyACM0"
     mock_interface = MagicMock()
     mock_interface.load_rf_config.return_value = 0

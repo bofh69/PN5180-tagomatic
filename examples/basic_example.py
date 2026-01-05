@@ -35,7 +35,7 @@ def main() -> int:
         with PN5180(args.tty) as reader:
             print("PN5180 reader initialized")
 
-            data = reader.read_eeprom(0x12, 2)
+            data = reader.ll.read_eeprom(0x12, 2)
             print("Read from EEPROM")
             print(f"Firmware version: {data[1]}.{data[0]}")
 

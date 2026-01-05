@@ -116,7 +116,7 @@ class ISO14443ACard:
     successfully connected via the ISO 14443-A anticollision protocol.
     """
 
-    def __init__(self, reader: PN5180, uid: bytes) -> None:
+    def __init__(self, reader: PN5180Helper, uid: bytes) -> None:
         """Initialize ISO14443ACard.
 
         Args:
@@ -131,11 +131,15 @@ class ISO14443ACard:
         """Get the card's UID."""
         return self._uid
 
-    def read_memory(self) -> bytes:
+    def read_memory(self, start_page: int = 0, num_pages: int = 255) -> bytes:
         """Read memory from a non-MIFARE Classic ISO 14443-A card.
 
         This method reads memory pages from ISO 14443-A cards like NTAG
         that don't require authentication.
+
+        Args:
+            start_page: Starting page number (default: 0).
+            num_pages: Number of pages to read (default: 255).
 
         Returns:
             All read memory as a single bytes object.
@@ -146,18 +150,17 @@ class ISO14443ACard:
         self._reader.turn_on_crc()
 
         memory_parts = []
-        for page in range(0, 255, 4):
+        end_page = min(start_page + num_pages, 255)
+        for page in range(start_page, end_page, 4):
             # Send READ command
-            self._reader.send_data(0, bytes([0x30, page]))
+            memory_content = self._reader.send_and_receive(
+                0, bytes([0x30, page])
+            )
 
-            rx_status = self._reader.read_register(Registers.RX_STATUS)
-            data_len = rx_status & 511
-
-            if data_len < 1:
+            if len(memory_content) < 1:
                 # No more data available
                 break
 
-            memory_content = self._reader.read_data(data_len)
             memory_parts.append(memory_content)
 
         return b"".join(memory_parts)
@@ -166,6 +169,8 @@ class ISO14443ACard:
         self,
         key_a: bytes | None = None,
         key_b: bytes | None = None,
+        start_page: int = 0,
+        num_pages: int = 255,
     ) -> bytes:
         """Read memory from a MIFARE Classic card.
 
@@ -175,6 +180,8 @@ class ISO14443ACard:
         Args:
             key_a: 6-byte KEY_A (default: all 0xFF).
             key_b: 6-byte KEY_B (default: all 0xFF).
+            start_page: Starting page number (default: 0).
+            num_pages: Number of pages to read (default: 255).
 
         Returns:
             All read memory as a single bytes object.
@@ -209,7 +216,8 @@ class ISO14443ACard:
         )
 
         memory_parts = []
-        for page in range(0, 255, 4):
+        end_page = min(start_page + num_pages, 255)
+        for page in range(start_page, end_page, 4):
             # Try KEY A
             retval_a = self._reader.mifare_authenticate(
                 key_a, MifareKeyType.KEY_A, page, mifare_uid
@@ -229,30 +237,28 @@ class ISO14443ACard:
                     break
 
             # Send READ command
-            self._reader.send_data(0, bytes([0x30, page]))
+            memory_content = self._reader.send_and_receive(
+                0, bytes([0x30, page])
+            )
 
-            rx_status = self._reader.read_register(Registers.RX_STATUS)
-            data_len = rx_status & 511
-
-            if data_len < 1:
+            if len(memory_content) < 1:
                 # No more data available
                 break
 
-            memory_content = self._reader.read_data(data_len)
             memory_parts.append(memory_content)
 
         return b"".join(memory_parts)
 
 
-class PN5180Communication:
+class PN5180RFSession:
     """Manages RF communication session.
 
     This class handles the lifecycle of an RF communication session,
     ensuring that the RF field is turned off when the session ends.
     """
 
-    def __init__(self, reader: PN5180) -> None:
-        """Initialize PN5180Communication.
+    def __init__(self, reader: PN5180Helper) -> None:
+        """Initialize PN5180RFSession.
 
         Args:
             reader: The PN5180 reader instance.
@@ -307,13 +313,13 @@ class PN5180Communication:
         # Wait for reception
         self._reader.wait_for_irq(1000)
 
+        # Read ATQA response
         rx_status = self._reader.read_register(Registers.RX_STATUS)
         data_len = rx_status & 511
 
         if data_len < 1:
             raise TimeoutError("No card answered to WUPA command")
 
-        # Read ATQA response
         data = self._reader.read_data(data_len)
         uid_len = data[0] // 64
 
@@ -325,22 +331,16 @@ class PN5180Communication:
 
             # Send Anticollision CL X
             if cl == 0:
-                self._reader.send_data(0, bytes([0x93, 0x20]))
+                data = self._reader.send_and_receive(0, bytes([0x93, 0x20]))
             elif cl == 1:
-                self._reader.send_data(0, bytes([0x95, 0x20]))
+                data = self._reader.send_and_receive(0, bytes([0x95, 0x20]))
             elif cl == 2:
-                self._reader.send_data(0, bytes([0x97, 0x20]))
+                data = self._reader.send_and_receive(0, bytes([0x97, 0x20]))
 
-            rx_status = self._reader.read_register(Registers.RX_STATUS)
-            data_len = rx_status & 511
-
-            if data_len < 5:
+            if len(data) < 5:
                 raise ValueError(
-                    f"Incomplete UID response received, data_len={data_len}"
+                    f"Incomplete UID response received, data_len={len(data)}"
                 )
-
-            # Read anticollision response
-            data = self._reader.read_data(data_len)
 
             # Verify BCC (Block Check Character)
             bcc = data[0] ^ data[1] ^ data[2] ^ data[3]
@@ -363,18 +363,19 @@ class PN5180Communication:
             # Send SELECT command
             self._reader.turn_on_crc()
             if cl == 0:
-                self._reader.send_data(0, bytes([0x93, 0x70]) + data)
+                _ = self._reader.send_and_receive(
+                    0, bytes([0x93, 0x70]) + data
+                )
             elif cl == 1:
-                self._reader.send_data(0, bytes([0x95, 0x70]) + data)
+                _ = self._reader.send_and_receive(
+                    0, bytes([0x95, 0x70]) + data
+                )
             elif cl == 2:
-                self._reader.send_data(0, bytes([0x97, 0x70]) + data)
+                _ = self._reader.send_and_receive(
+                    0, bytes([0x97, 0x70]) + data
+                )
 
-            rx_status = self._reader.read_register(Registers.RX_STATUS)
-            data_len = rx_status & 511
-
-            # Read SAK (Select Acknowledge)
-            data = self._reader.read_data(data_len)
-
+            # Read SAK (Select Acknowledge) - already received
             self._reader.turn_off_crc()
 
         return bytes(uid)
@@ -385,7 +386,7 @@ class PN5180Communication:
             self._reader.rf_off()
             self._active = False
 
-    def __enter__(self) -> PN5180Communication:
+    def __enter__(self) -> PN5180RFSession:
         """Context manager entry."""
         return self
 
@@ -398,24 +399,24 @@ class PN5180Communication:
         self.close()
 
 
-class PN5180:
-    """PN5180 RFID reader interface.
+class PN5180Proxy:
+    """Low-level PN5180 RFID reader interface.
 
-    This class provides a Python interface to the PN5180 RFID reader
-    running on a Raspberry Pi Pico via USB serial communication using
-    the SimpleRPC protocol.
+    This class provides direct access to the PN5180 RFID reader's RPC methods
+    via the SimpleRPC protocol. It contains only the low-level methods that
+    directly communicate with the hardware.
 
     Args:
         tty: The tty device path to communicate via.
 
     Example:
-        >>> from pn5180_tagomatic import PN5180
-        >>> reader = PN5180("/dev/ttyACM0")
+        >>> from pn5180_tagomatic import PN5180Proxy
+        >>> reader = PN5180Proxy("/dev/ttyACM0")
         >>> reader.reset()
     """
 
     def __init__(self, tty: str) -> None:
-        """Initialize the PN5180 reader.
+        """Initialize the PN5180 low-level reader.
 
         Args:
             tty: The tty device path to communicate via.
@@ -867,35 +868,26 @@ class PN5180:
         self._validate_uint16(timeout_ms, "timeout_ms")
         return cast(bool, self._interface.wait_for_irq(timeout_ms))
 
-    def start_comm(
-        self, tx_config: int, rx_config: int
-    ) -> PN5180Communication:
-        """Start an RF communication session.
+    def close(self) -> None:
+        """Close the serial connection."""
+        if self._interface:
+            self._interface.close()
 
-        This method loads the RF configuration and turns on the RF field,
-        then returns a PN5180Communication object that manages the session.
-        The RF field will be automatically turned off when the session ends.
+    def __enter__(self) -> PN5180Proxy:
+        """Context manager entry."""
+        return self
 
-        Args:
-            tx_config: TX configuration index (byte: 0-255, see table 32).
-            rx_config: RX configuration index (byte: 0-255, see table 32).
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Context manager exit."""
+        self.close()
 
-        Returns:
-            PN5180Communication object for managing the session.
 
-        Raises:
-            PN5180Error: If the operation fails.
+class PN5180Helper(PN5180Proxy):
+    """Helper methods for PN5180.
 
-        Example:
-            >>> reader = PN5180("/dev/ttyACM0")
-            >>> with reader.start_comm(0x00, 0x80) as comm:
-            ...     card = comm.connect_iso14443a()
-            ...     uid = card.uid
-            ...     memory = card.read_memory()
-        """
-        self.load_rf_config(tx_config, rx_config)
-        self.rf_on()
-        return PN5180Communication(self)
+    This class extends PN5180Proxy with convenience methods that build on
+    the low-level RPC methods but are not direct RPC wrappers.
+    """
 
     def turn_off_crc(self) -> None:
         """Turn off CRC for TX and RX.
@@ -927,6 +919,92 @@ class PN5180:
         # Initiates Transceiver state
         self.write_register_or_mask(Registers.SYSTEM_CONFIG, 0x00000003)
 
+    def send_and_receive(self, bits: int, data: bytes) -> bytes:
+        """Send data and receive response.
+
+        This is a common pattern that sends data, checks RX_STATUS register,
+        and reads the response if available.
+
+        Args:
+            bits: Number of valid bits in final byte (byte: 0-255).
+            data: Up to 260 bytes to send.
+
+        Returns:
+            Received data as bytes. Empty bytes() if no data was received.
+
+        Raises:
+            PN5180Error: If communication fails.
+        """
+        self.send_data(bits, data)
+        rx_status = self.read_register(Registers.RX_STATUS)
+        data_len = rx_status & 511
+
+        if data_len == 0:
+            return b""
+
+        return self.read_data(data_len)
+
+
+class PN5180:
+    """High-level PN5180 RFID reader interface.
+
+    This class provides a convenient, high-level API for common RFID operations.
+    For direct hardware access, use the `ll` (low-level) attribute.
+
+    Args:
+        tty: The tty device path to communicate via.
+
+    Attributes:
+        ll: Low-level PN5180 interface for direct hardware access.
+
+    Example:
+        >>> from pn5180_tagomatic import PN5180
+        >>> with PN5180("/dev/ttyACM0") as reader:
+        ...     # High-level API (recommended)
+        ...     with reader.start_comm(0x00, 0x80) as comm:
+        ...         card = comm.connect_iso14443a()
+        ...         memory = card.read_memory()
+        ...
+        ...     # Low-level access if needed
+        ...     reader.ll.write_register(addr, value)
+    """
+
+    def __init__(self, tty: str) -> None:
+        """Initialize the PN5180 reader.
+
+        Args:
+            tty: The tty device path to communicate via.
+        """
+        self.ll = PN5180Helper(tty)
+
+    def start_comm(self, tx_config: int, rx_config: int) -> PN5180RFSession:
+        """Start an RF communication session.
+
+        This method loads the RF configuration and turns on the RF field,
+        then returns a PN5180RFSession object that manages the session.
+        The RF field will be automatically turned off when the session ends.
+
+        Args:
+            tx_config: TX configuration index (byte: 0-255, see table 32).
+            rx_config: RX configuration index (byte: 0-255, see table 32).
+
+        Returns:
+            PN5180RFSession object for managing the session.
+
+        Raises:
+            PN5180Error: If the operation fails.
+
+        Example:
+            >>> reader = PN5180("/dev/ttyACM0")
+            >>> with reader.start_comm(0x00, 0x80) as comm:
+            ...     card = comm.connect_iso14443a()
+            ...     uid = card.uid
+            ...     memory = card.read_memory()
+        """
+        self.ll.load_rf_config(tx_config, rx_config)
+        self.ll.rf_on()
+        return PN5180RFSession(self.ll)
+
     def iso14443a_get_uid(self) -> bytes:
         """Get the UID of an ISO 14443-A card.
 
@@ -945,30 +1023,30 @@ class PN5180:
                 cascade tag, etc.).
             TimeoutError: If no card responds.
         """
-        self.turn_off_crc()
+        self.ll.turn_off_crc()
 
         # Clear all IRQs
-        self.write_register(Registers.IRQ_CLEAR, 0x000FFFFF)
+        self.ll.write_register(Registers.IRQ_CLEAR, 0x000FFFFF)
 
         # Configure IRQ ENABLE register, turn on RX_IRQ_EN
-        self.write_register_or_mask(Registers.IRQ_ENABLE, 1)
+        self.ll.write_register_or_mask(Registers.IRQ_ENABLE, 1)
 
-        self.change_mode_to_transceiver()
+        self.ll.change_mode_to_transceiver()
 
         # Send WUPA command (0x52)
-        self.send_data(7, bytes([0x52]))
+        self.ll.send_data(7, bytes([0x52]))
 
         # Wait for reception
-        self.wait_for_irq(1000)
+        self.ll.wait_for_irq(1000)
 
-        rx_status = self.read_register(Registers.RX_STATUS)
+        rx_status = self.ll.read_register(Registers.RX_STATUS)
         data_len = rx_status & 511
 
         if data_len < 1:
             raise TimeoutError("No card answered to WUPA command")
 
         # Read ATQA response
-        data = self.read_data(data_len)
+        data = self.ll.read_data(data_len)
         uid_len = data[0] // 64
 
         uid = []
@@ -981,22 +1059,16 @@ class PN5180:
 
             # Send Anticollision CL X
             if cl == 0:
-                self.send_data(0, bytes([0x93, 0x20]))
+                data = self.ll.send_and_receive(0, bytes([0x93, 0x20]))
             elif cl == 1:
-                self.send_data(0, bytes([0x95, 0x20]))
+                data = self.ll.send_and_receive(0, bytes([0x95, 0x20]))
             elif cl == 2:
-                self.send_data(0, bytes([0x97, 0x20]))
+                data = self.ll.send_and_receive(0, bytes([0x97, 0x20]))
 
-            rx_status = self.read_register(Registers.RX_STATUS)
-            data_len = rx_status & 511
-
-            if data_len < 5:
+            if len(data) < 5:
                 raise ValueError(
-                    f"Incomplete UID response received, data_len={data_len}"
+                    f"Incomplete UID response received, data_len={len(data)}"
                 )
-
-            # Read anticollision response
-            data = self.read_data(data_len)
 
             # Verify BCC (Block Check Character)
             bcc = data[0] ^ data[1] ^ data[2] ^ data[3]
@@ -1017,21 +1089,16 @@ class PN5180:
             uid.append(data[3])
 
             # Send SELECT command
-            self.turn_on_crc()
+            self.ll.turn_on_crc()
             if cl == 0:
-                self.send_data(0, bytes([0x93, 0x70]) + data)
+                _ = self.ll.send_and_receive(0, bytes([0x93, 0x70]) + data)
             elif cl == 1:
-                self.send_data(0, bytes([0x95, 0x70]) + data)
+                _ = self.ll.send_and_receive(0, bytes([0x95, 0x70]) + data)
             elif cl == 2:
-                self.send_data(0, bytes([0x97, 0x70]) + data)
+                _ = self.ll.send_and_receive(0, bytes([0x97, 0x70]) + data)
 
-            rx_status = self.read_register(Registers.RX_STATUS)
-            data_len = rx_status & 511
-
-            # Read SAK (Select Acknowledge)
-            data = self.read_data(data_len)
-
-            self.turn_off_crc()
+            # Read SAK (Select Acknowledge) - already received
+            self.ll.turn_off_crc()
 
         return bytes(uid)
 
@@ -1059,7 +1126,7 @@ class PN5180:
         Raises:
             PN5180Error: If communication with the card fails.
         """
-        self.turn_on_crc()
+        self.ll.turn_on_crc()
 
         memory_data: dict[int, bytes] = {}
         is_mifare = len(uid) == 4
@@ -1074,7 +1141,7 @@ class PN5180:
                 key = bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
 
                 # Try KEY A
-                retval_a = self.mifare_authenticate(
+                retval_a = self.ll.mifare_authenticate(
                     key, MifareKeyType.KEY_A, page, mifare_uid
                 )
                 if retval_a == 2:  # timeout
@@ -1082,7 +1149,7 @@ class PN5180:
 
                 # Try KEY B if KEY A failed
                 if retval_a != 0:
-                    retval_b = self.mifare_authenticate(
+                    retval_b = self.ll.mifare_authenticate(
                         key, MifareKeyType.KEY_B, page, mifare_uid
                     )
                     if retval_b == 2:  # timeout
@@ -1092,24 +1159,19 @@ class PN5180:
                         break
 
             # Send READ command
-            self.send_data(0, bytes([0x30, page]))
+            memory_content = self.ll.send_and_receive(0, bytes([0x30, page]))
 
-            rx_status = self.read_register(Registers.RX_STATUS)
-            data_len = rx_status & 511
-
-            if data_len < 1:
+            if len(memory_content) < 1:
                 # No more data available
                 break
 
-            memory_content = self.read_data(data_len)
             memory_data[page] = memory_content
 
         return memory_data
 
     def close(self) -> None:
         """Close the serial connection."""
-        if self._interface:
-            self._interface.close()
+        self.ll.close()
 
     def __enter__(self) -> PN5180:
         """Context manager entry."""
