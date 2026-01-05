@@ -84,7 +84,7 @@ class ISO14443ACard:
         """
         self._reader.turn_on_crc()
 
-        # Send READ command
+        # Send WRITE command
         self._reader.send_data(
             0,
             bytes(

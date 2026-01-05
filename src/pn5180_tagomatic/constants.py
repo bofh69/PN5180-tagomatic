@@ -108,7 +108,7 @@ class ISO14443ACommand(IntEnum):
     READ = 0x30  # Read command
     REQA = 0x26  # Request A
     SELECT = 0x70  # Select command parameter
-    WRITE = 0xA2  # Read command
+    WRITE = 0xA2  # Write command
     WUPA = 0x52  # Wake Up A
 
 
