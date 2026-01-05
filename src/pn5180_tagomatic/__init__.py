@@ -6,6 +6,7 @@
 from .constants import (
     ISO14443ACommand,
     ISO15693Command,
+    ISO15693Error,
     MifareKeyType,
     PN5180Error,
     RegisterOperation,
@@ -25,6 +26,7 @@ __all__ = [
     "ISO14443ACommand",
     "ISO15693Card",
     "ISO15693Command",
+    "ISO15693Error",
     "MifareKeyType",
     "PN5180",
     "PN5180Error",

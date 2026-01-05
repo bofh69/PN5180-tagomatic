@@ -16,6 +16,7 @@ except ImportError as e:
     ) from e
 
 from .constants import (
+    ISO15693Error,
     MifareKeyType,
     PN5180Error,
     RegisterOperation,
@@ -709,7 +710,9 @@ class PN5180Helper(PN5180Proxy):
             Received data as bytes. Empty bytes() if no data was received.
 
         Raises:
-            PN5180Error: If communication fails.
+            ISO15693Error: If the tag returns an error response.
+            TimeoutError: If no response is received within timeout.
+            PN5180Error: If communication with the PN5180 fails.
         """
         self.write_register(Registers.IRQ_CLEAR, 1)
         self.write_register(Registers.IRQ_ENABLE, 1)
@@ -736,11 +739,10 @@ class PN5180Helper(PN5180Proxy):
             if how_many_bytes > 0:
                 data = self.read_data(how_many_bytes)
                 if data[0] & 1:
-                    # TODO: Change to an unique exception, with data
-                    data += b"\0"
-                    raise PN5180Error(
-                        f"Got ISO-15693 error response for command 0x{command:x}",
-                        data[1],
+                    raise ISO15693Error(
+                        command=command,
+                        error_code=data[1],
+                        response_data=data,
                     )
                 return data
         return b""
