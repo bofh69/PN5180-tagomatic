@@ -48,7 +48,7 @@ def main() -> int:
                 # Write memory based on card type
                 if len(card.uid) == 4:
                     # MIFARE Classic card
-                    raise NotImplemented("Not yet implemented")
+                    raise NotImplementedError("Not yet implemented")
                 else:
                     # Other ISO 14443-A card (e.g., NTAG)
                     card.write_memory(16//4, 0xEFBEADDE)

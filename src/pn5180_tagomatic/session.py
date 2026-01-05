@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 PN5180-tagomatic contributors
+# SPDX-FileCopyrightText: 2026 PN5180-tagomatic contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 """RF communication session management."""
@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from .constants import ISO14443ACommand, ISO15693Command, Registers
 from .iso14443a import ISO14443ACard
+from .iso15693 import ISO15693Card
 
 if TYPE_CHECKING:
     from .proxy import PN5180Helper
@@ -219,25 +220,15 @@ class PN5180RFSession:
 
         uids = []
 
-        # Clear all IRQs
-        self._reader.write_register(Registers.IRQ_CLEAR, 0x000FFFFF)
+        self._reader.turn_on_crc()
 
         # Set to transceiver mode
         self._reader.change_mode_to_transceiver()
 
-        # Send ISO 15693 Inventory command
-        # Format: [Flags, Command, Mask Length]
-        # 0x06 = Inventory flag (1 slot mode bit not set for 16 slots)
-        # 0x01 = Inventory command
-        self._reader.send_data(
-            0,
-            bytes(
-                [
-                    0x06,
-                    ISO15693Command.INVENTORY,
-                    mask_length,
-                ]
-            ),
+        stored_tx_config = self._reader.read_register(Registers.TX_CONFIG)
+
+        self._reader.send_15693_request(
+            ISO15693Command.INVENTORY, bytes([mask_length]), is_inventory=True
         )
 
         # Loop through all slots
@@ -264,13 +255,39 @@ class PN5180RFSession:
             # Set state to TRANSCEIVE
             self._reader.change_mode_to_transceiver()
 
-            # # Clear IRQs
-            # self._reader.write_register(Registers.IRQ_CLEAR, 0x000FFFFF)
-
             # Send EOF
             self._reader.send_data(0, b"")
 
+        self._reader.write_register(Registers.TX_CONFIG, stored_tx_config)
+
         return uids
+
+    def connect_iso15693(self, uid: bytes) -> ISO15693Card:
+        """Connect to an ISO 15693 card.
+
+        This method selects an ISO 15693 card and returns
+        a card object.
+
+        Returns:
+            ISO15693Card object representing the connected card.
+
+        Raises:
+            PN5180Error: If communication with the card fails.
+            ValueError: If the card's response is invalid.
+            TimeoutError: If no card responds.
+        """
+        if not self._active:
+            raise RuntimeError("Communication session is no longer active")
+
+        self._reader.turn_on_crc()
+        self._reader.change_mode_to_transceiver()
+        _answer = self._reader.send_and_receive_15693(
+            ISO15693Command.SELECT,
+            b"",
+            uid=uid,
+        )
+
+        return ISO15693Card(self._reader, uid)
 
     def close(self) -> None:
         """Close the communication session and turn off RF field."""

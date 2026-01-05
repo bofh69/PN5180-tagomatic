@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 PN5180-tagomatic contributors
+# SPDX-FileCopyrightText: 2026 PN5180-tagomatic contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 """Constants and enumerations for PN5180 RFID reader."""
@@ -19,6 +19,28 @@ class PN5180Error(Exception):
         self.operation = operation
         self.error_code = error_code
         super().__init__(f"{operation} failed with error code {error_code}")
+
+
+class ISO15693Error(Exception):
+    """Exception raised when an ISO 15693 command returns an error response."""
+
+    def __init__(
+        self, command: int, error_code: int, response_data: bytes
+    ) -> None:
+        """Initialize ISO15693Error.
+
+        Args:
+            command: The ISO 15693 command that triggered the error (8-bit value).
+            error_code: The error code from the tag's error response.
+            response_data: The full error response data from the tag.
+        """
+        self.command = command
+        self.error_code = error_code
+        self.response_data = response_data
+        super().__init__(
+            f"ISO 15693 command 0x{command:02X} failed "
+            f"with error code 0x{error_code:02X}"
+        )
 
 
 class MifareKeyType(IntEnum):
@@ -115,4 +137,14 @@ class ISO14443ACommand(IntEnum):
 class ISO15693Command(IntEnum):
     """ISO 15693 protocol command bytes."""
 
-    INVENTORY = 0x01  # Inventory command
+    GET_SYSTEM_INFORMATION = 0x2B
+    GET_MULTIPLE_BLOCK_SECURITY_STATUS = 0x2C
+    INVENTORY = 0x01
+    LOCK_BLOCK = 0x22
+    READ_SINGLE_BLOCK = 0x20
+    READ_MULTIPLE_BLOCKS = 0x23
+    RESET_TO_READY = 0x26
+    SELECT = 0x25
+    STAY_QUIET = 0x02
+    WRITE_SINGLE_BLOCK = 0x21
+    WRITE_MULTIPLE_BLOCKS = 0x24
