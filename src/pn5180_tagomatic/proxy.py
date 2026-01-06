@@ -68,13 +68,19 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
         if not isinstance(value, int) or value < 0 or value > 4294967295:
             raise ValueError(f"{name} must be between 0 and 4294967295")
 
+    # pylint: disable=no-member
+
     def reset(self) -> None:
         """Reset the PN5180 NFC frontend.
 
         This method calls the reset function on the Arduino device,
         which performs a hardware reset of the PN5180 module.
         """
-        self._interface.reset()  # pylint: disable=no-member
+        self._interface.reset()
+
+    def test_it(self) -> int:
+        """Test the PN5180 NFC frontend."""
+        return self._interface.test_it()
 
     def write_register(self, addr: int, value: int) -> None:
         """Write to a PN5180 register.
@@ -90,9 +96,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
         self._validate_uint32(value, "value")
         result = cast(
             int,
-            self._interface.write_register(
-                addr, value
-            ),  # pylint: disable=no-member
+            self._interface.write_register(addr, value),
         )
         if result < 0:
             raise PN5180Error("write_register", result)
@@ -111,9 +115,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
         self._validate_uint32(value, "value")
         result = cast(
             int,
-            self._interface.write_register_or_mask(
-                addr, value
-            ),  # pylint: disable=no-member
+            self._interface.write_register_or_mask(addr, value),
         )
         if result < 0:
             raise PN5180Error("write_register_or_mask", result)
@@ -132,9 +134,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
         self._validate_uint32(value, "value")
         result = cast(
             int,
-            self._interface.write_register_and_mask(
-                addr, value
-            ),  # pylint: disable=no-member
+            self._interface.write_register_and_mask(addr, value),
         )
         if result < 0:
             raise PN5180Error("write_register_and_mask", result)
@@ -165,9 +165,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
                     f"OR (2), or AND (3)"
                 )
             self._validate_uint32(value, f"elements[{i}].value")
-        result = cast(
-            int, self._interface.write_register_multiple(elements)
-        )  # pylint: disable=no-member
+        result = cast(int, self._interface.write_register_multiple(elements))
         if result < 0:
             raise PN5180Error("write_register_multiple", result)
 
@@ -184,9 +182,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
             PN5180Error: If the operation fails.
         """
         self._validate_uint8(addr, "addr")
-        result = cast(
-            tuple[int, int], self._interface.read_register(addr)
-        )  # pylint: disable=no-member
+        result = cast(tuple[int, int], self._interface.read_register(addr))
         if result[0] < 0:
             raise PN5180Error("read_register", result[0])
         return result[1]
@@ -209,9 +205,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
             self._validate_uint8(addr, f"addrs[{i}]")
         result = cast(
             tuple[int, list[int]],
-            self._interface.read_register_multiple(
-                addrs
-            ),  # pylint: disable=no-member
+            self._interface.read_register_multiple(addrs),
         )
         if result[0] < 0:
             raise PN5180Error("read_register_multiple", result[0])
@@ -230,9 +224,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
         self._validate_uint8(addr, "addr")
         if len(values) > 255:
             raise ValueError("values must be at most 255 bytes")
-        result = cast(
-            int, self._interface.write_eeprom(addr, list(values))
-        )  # pylint: disable=no-member
+        result = cast(int, self._interface.write_eeprom(addr, list(values)))
         if result < 0:
             raise PN5180Error("write_eeprom", result)
 
@@ -251,9 +243,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
         """
         self._validate_uint8(addr, "addr")
         self._validate_uint8(length, "length")
-        result = self._interface.read_eeprom(
-            addr, length
-        )  # pylint: disable=no-member
+        result = self._interface.read_eeprom(addr, length)
         if result[0] < 0:
             raise PN5180Error("read_eeprom", result[0])
         return bytes(result[1])
@@ -269,9 +259,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
         """
         if len(values) > 260:
             raise ValueError("values must be at most 260 bytes")
-        result = cast(
-            int, self._interface.write_tx_data(list(values))
-        )  # pylint: disable=no-member
+        result = cast(int, self._interface.write_tx_data(list(values)))
         if result < 0:
             raise PN5180Error("write_tx_data", result)
 
@@ -288,9 +276,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
         self._validate_uint8(bits, "bits")
         if len(values) > 260:
             raise ValueError("values must be at most 260 bytes")
-        result = cast(
-            int, self._interface.send_data(bits, list(values))
-        )  # pylint: disable=no-member
+        result = cast(int, self._interface.send_data(bits, list(values)))
         if result < 0:
             raise PN5180Error("send_data", result)
 
@@ -309,7 +295,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
         self._validate_uint16(length, "length")
         if length > 508:
             raise ValueError("length must be at most 508")
-        result = self._interface.read_data(length)  # pylint: disable=no-member
+        result = self._interface.read_data(length)
         if result[0] < 0:
             raise PN5180Error("read_data", result[0])
         return bytes(result[1])
@@ -335,9 +321,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
             )
         for i, param in enumerate(params):
             self._validate_uint8(param, f"params[{i}]")
-        result = cast(
-            int, self._interface.switch_mode(mode, params)
-        )  # pylint: disable=no-member
+        result = cast(int, self._interface.switch_mode(mode, params))
         if result < 0:
             raise PN5180Error("switch_mode", result)
 
@@ -369,7 +353,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
         self._validate_uint32(uid, "uid")
         result = cast(
             int,
-            self._interface.mifare_authenticate(  # pylint: disable=no-member
+            self._interface.mifare_authenticate(
                 list(key), key_type, block_addr, uid
             ),
         )
@@ -417,7 +401,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
             )
         result = cast(
             int,
-            self._interface.epc_inventory(  # pylint: disable=no-member
+            self._interface.epc_inventory(
                 list(select_command),
                 select_command_final_bits,
                 list(begin_round),
@@ -433,9 +417,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
         Raises:
             PN5180Error: If the operation fails.
         """
-        result = cast(
-            int, self._interface.epc_resume_inventory()
-        )  # pylint: disable=no-member
+        result = cast(int, self._interface.epc_resume_inventory())
         if result < 0:
             raise PN5180Error("epc_resume_inventory", result)
 
@@ -450,7 +432,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
         """
         result = cast(
             int,
-            self._interface.epc_retrieve_inventory_result_size(),  # pylint: disable=no-member
+            self._interface.epc_retrieve_inventory_result_size(),
         )
         if result < 0:
             raise PN5180Error("epc_retrieve_inventory_result_size", result)
@@ -470,9 +452,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
         self._validate_uint8(rx_config, "rx_config")
         result = cast(
             int,
-            self._interface.load_rf_config(
-                tx_config, rx_config
-            ),  # pylint: disable=no-member
+            self._interface.load_rf_config(tx_config, rx_config),
         )
         if result < 0:
             raise PN5180Error("load_rf_config", result)
@@ -496,9 +476,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
             flags |= 0x01
         if use_active_communication:
             flags |= 0x02
-        result = cast(
-            int, self._interface.rf_on(flags)
-        )  # pylint: disable=no-member
+        result = cast(int, self._interface.rf_on(flags))
         if result < 0:
             raise PN5180Error("rf_on", result)
 
@@ -508,9 +486,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
         Raises:
             PN5180Error: If the operation fails.
         """
-        result = cast(
-            int, self._interface.rf_off()
-        )  # pylint: disable=no-member
+        result = cast(int, self._interface.rf_off())
         if result < 0:
             raise PN5180Error("rf_off", result)
 
@@ -520,9 +496,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
         Returns:
             True if IRQ is set.
         """
-        return cast(
-            bool, self._interface.is_irq_set()
-        )  # pylint: disable=no-member
+        return cast(bool, self._interface.is_irq_set())
 
     def wait_for_irq(self, timeout_ms: int) -> bool:
         """Wait up to a timeout value for the IRQ to be set.
@@ -536,15 +510,13 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
         self._validate_uint16(timeout_ms, "timeout_ms")
         return cast(
             bool,
-            self._interface.wait_for_irq(
-                timeout_ms
-            ),  # pylint: disable=no-member
+            self._interface.wait_for_irq(timeout_ms),
         )
 
     def close(self) -> None:
         """Close the serial connection."""
         if self._interface:
-            self._interface.close()  # pylint: disable=no-member
+            self._interface.close()
 
     def __enter__(self) -> PN5180Proxy:
         """Context manager entry."""
@@ -611,7 +583,7 @@ class PN5180Helper(PN5180Proxy):
         self.send_data(bits, data)
 
         if not self.wait_for_irq(100):
-            raise TimeoutError(f"No answer for {data[0]} request.")
+            raise TimeoutError(f"No answer for {data[0]:x} request.")
 
         self.write_register(Registers.IRQ_ENABLE, 0)
         self.write_register(Registers.IRQ_CLEAR, 1)
