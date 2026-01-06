@@ -270,3 +270,84 @@ def test_card_read_mifare_memory(mock_interface_class: Mock) -> None:
         assert len(memory) == 16
         assert memory == bytes([0xCC] * 16)
         mock_interface.mifare_authenticate.assert_called()
+
+
+@patch("pn5180_tagomatic.proxy.Interface")
+def test_card_write_memory_with_ack(mock_interface_class: Mock) -> None:
+    """Test writing memory to non-MIFARE card with ACK response."""
+    tty = "/dev/ttyACM0"
+    mock_interface = MagicMock()
+    mock_interface_class.return_value = mock_interface
+
+    # Mock operations
+    mock_interface.load_rf_config.return_value = 0
+    mock_interface.rf_on.return_value = 0
+    mock_interface.rf_off.return_value = 0
+    mock_interface.write_register_and_mask.return_value = 0
+    mock_interface.write_register_or_mask.return_value = 0
+    mock_interface.write_register.return_value = 0
+    mock_interface.send_data.return_value = 0
+    mock_interface.wait_for_irq.return_value = True
+
+    # Mock UID retrieval (4-byte UID) and write ACK
+    mock_interface.read_register.side_effect = [
+        (0, 0x0002),  # ATQA
+        (0, 0x0005),  # UID
+        (0, 0x0001),  # SAK
+        (0, 0x0001),  # ACK response (RX_STATUS)
+    ]
+
+    mock_interface.read_data.side_effect = [
+        (0, [0x00, 0x00]),  # ATQA (4-byte UID)
+        (0, [0x01, 0x02, 0x03, 0x04, 0x04]),  # UID + BCC (0x01^0x02^0x03^0x04 = 0x04)
+        (0, [0x08]),  # SAK
+        (0, [0x0A]),  # ACK response
+    ]
+
+    reader = PN5180(tty)
+    with reader.start_session(0x00, 0x80) as comm:
+        card = comm.connect_iso14443a()
+        # Should succeed with ACK
+        card.write_memory(4, 0xDEADBEEF)
+
+
+@patch("pn5180_tagomatic.proxy.Interface")
+def test_card_write_memory_with_nak(mock_interface_class: Mock) -> None:
+    """Test writing memory to non-MIFARE card with NAK response."""
+    import pytest
+
+    tty = "/dev/ttyACM0"
+    mock_interface = MagicMock()
+    mock_interface_class.return_value = mock_interface
+
+    # Mock operations
+    mock_interface.load_rf_config.return_value = 0
+    mock_interface.rf_on.return_value = 0
+    mock_interface.rf_off.return_value = 0
+    mock_interface.write_register_and_mask.return_value = 0
+    mock_interface.write_register_or_mask.return_value = 0
+    mock_interface.write_register.return_value = 0
+    mock_interface.send_data.return_value = 0
+    mock_interface.wait_for_irq.return_value = True
+
+    # Mock UID retrieval (4-byte UID) and write NAK
+    mock_interface.read_register.side_effect = [
+        (0, 0x0002),  # ATQA
+        (0, 0x0005),  # UID
+        (0, 0x0001),  # SAK
+        (0, 0x0001),  # NAK response (RX_STATUS)
+    ]
+
+    mock_interface.read_data.side_effect = [
+        (0, [0x00, 0x00]),  # ATQA (4-byte UID)
+        (0, [0x01, 0x02, 0x03, 0x04, 0x04]),  # UID + BCC (0x01^0x02^0x03^0x04 = 0x04)
+        (0, [0x08]),  # SAK
+        (0, [0x00]),  # NAK response (0x0 instead of 0xA)
+    ]
+
+    reader = PN5180(tty)
+    with reader.start_session(0x00, 0x80) as comm:
+        card = comm.connect_iso14443a()
+        # Should raise ValueError with NAK
+        with pytest.raises(ValueError, match="Write failed.*Expected ACK"):
+            card.write_memory(4, 0xDEADBEEF)

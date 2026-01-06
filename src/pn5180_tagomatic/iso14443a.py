@@ -81,11 +81,12 @@ class ISO14443ACard:
 
         Raises:
             PN5180Error: If communication with the card fails.
+            ValueError: If the card responds with a NAK instead of ACK.
         """
         self._reader.turn_on_crc()
 
-        # Send WRITE command
-        self._reader.send_data(
+        # Send WRITE command and receive ACK/NAK response
+        response = self._reader.send_and_receive(
             0,
             bytes(
                 [
@@ -99,7 +100,12 @@ class ISO14443ACard:
             ),
         )
 
-        # TODO Check ACK status...
+        # Check ACK status (4-bit ACK = 0xA)
+        if len(response) == 0 or (response[0] & 0x0F) != 0x0A:
+            raise ValueError(
+                f"Write failed: Expected ACK (0xA) but got "
+                f"{response.hex() if response else 'no response'}"
+            )
 
     def read_mifare_memory(
         self,
