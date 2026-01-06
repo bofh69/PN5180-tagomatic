@@ -69,8 +69,8 @@ def test_turn_off_crc(mock_interface_class: Mock) -> None:
 
     assert mock_interface.write_register_and_mask.call_count == 2
     calls = mock_interface.write_register_and_mask.call_args_list
-    assert calls[0] == call(Registers.CRC_TX_CONFIG, 0xFFFFFFFE)
-    assert calls[1] == call(Registers.CRC_RX_CONFIG, 0xFFFFFFFE)
+    assert call(Registers.CRC_TX_CONFIG, 0xFFFFFFFE) in calls
+    assert call(Registers.CRC_RX_CONFIG, 0xFFFFFFFE) in calls
 
 
 @patch("pn5180_tagomatic.proxy.Interface")
@@ -86,8 +86,8 @@ def test_turn_on_crc(mock_interface_class: Mock) -> None:
 
     assert mock_interface.write_register_or_mask.call_count == 2
     calls = mock_interface.write_register_or_mask.call_args_list
-    assert calls[0] == call(Registers.CRC_TX_CONFIG, 0x00000001)
-    assert calls[1] == call(Registers.CRC_RX_CONFIG, 0x00000001)
+    assert call(Registers.CRC_TX_CONFIG, 0x00000001) in calls
+    assert call(Registers.CRC_RX_CONFIG, 0x00000001) in calls
 
 
 @patch("pn5180_tagomatic.proxy.Interface")

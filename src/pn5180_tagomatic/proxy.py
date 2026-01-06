@@ -25,6 +25,8 @@ from .constants import (
     TimeslotBehavior,
 )
 
+MAX_TIMEOUT = 200  # Maximum time to wait for response
+
 
 class PN5180Proxy:  # pylint: disable=too-many-public-methods
     """Low-level PN5180 RFID reader interface.
@@ -79,8 +81,22 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
         self._interface.reset()
 
     def test_it(self) -> int:
-        """Test the PN5180 NFC frontend."""
-        return self._interface.test_it()
+        """Run a basic self-test on the PN5180 NFC frontend.
+
+        This method invokes the underlying Arduino ``test_it`` RPC to verify
+        communication with the PN5180 and perform a simple hardware check.
+
+        Returns:
+            int: Status code from the Arduino implementation:
+                * ``0`` indicates success.
+                * A negative value indicates a failure, with the exact
+                  meaning determined by the Arduino firmware.
+
+        Raises:
+            Exception: Any communication or transport-related exception
+                raised by the underlying :class:`simple_rpc.Interface`.
+        """
+        return cast(int, self._interface.test_it())
 
     def write_register(self, addr: int, value: int) -> None:
         """Write to a PN5180 register.
@@ -534,25 +550,54 @@ class PN5180Helper(PN5180Proxy):
     the low-level RPC methods but are not direct RPC wrappers.
     """
 
+    def turn_off_rx_crc(self) -> None:
+        """Turn off CRC for RX.
+
+        Disables CRC verification for reception.
+        """
+        # Turn off CRC for RX
+        self.write_register_and_mask(Registers.CRC_RX_CONFIG, 0xFFFFFFFE)
+
+    def turn_off_tx_crc(self) -> None:
+        """Turn off CRC for TX.
+
+        Disables CRC calculation for transmission.
+        """
+        # Turn off CRC for TX
+        self.write_register_and_mask(Registers.CRC_TX_CONFIG, 0xFFFFFFFE)
+
     def turn_off_crc(self) -> None:
         """Turn off CRC for TX and RX.
 
         Disables CRC calculation and verification for transmission and reception.
         """
-        # Turn off CRC for TX
-        self.write_register_and_mask(Registers.CRC_TX_CONFIG, 0xFFFFFFFE)
-        # Turn off CRC for RX
-        self.write_register_and_mask(Registers.CRC_RX_CONFIG, 0xFFFFFFFE)
+        self.turn_off_rx_crc()
+        self.turn_off_tx_crc()
+
+    def turn_on_rx_crc(self) -> None:
+        """Turn on CRC for RX.
+
+        Enables CRC verification for reception.
+        """
+        # Turn on CRC for RX
+        self.write_register_or_mask(Registers.CRC_RX_CONFIG, 0x00000001)
+
+    def turn_on_tx_crc(self) -> None:
+        """Turn on CRC for TX.
+
+        Enables CRC calculation for transmission.
+        """
+        # Turn on CRC for TX
+        self.write_register_or_mask(Registers.CRC_TX_CONFIG, 0x00000001)
 
     def turn_on_crc(self) -> None:
         """Turn on CRC for TX and RX.
 
         Enables CRC calculation and verification for transmission and reception.
         """
-        # Turn on CRC for TX
-        self.write_register_or_mask(Registers.CRC_TX_CONFIG, 0x00000001)
-        # Turn on CRC for RX
-        self.write_register_or_mask(Registers.CRC_RX_CONFIG, 0x00000001)
+
+        self.turn_on_rx_crc()
+        self.turn_on_tx_crc()
 
     def change_mode_to_transceiver(self) -> None:
         """Change PN5180 mode to transceiver.
@@ -563,6 +608,32 @@ class PN5180Helper(PN5180Proxy):
         self.write_register_and_mask(Registers.SYSTEM_CONFIG, 0xFFFFFFF8)
         # Initiates Transceiver state
         self.write_register_or_mask(Registers.SYSTEM_CONFIG, 0x00000003)
+
+    def clear_rx_irq(self) -> None:
+        """Clear RX IRQ in IRQ_STATUS register."""
+        self.write_register(Registers.IRQ_CLEAR, 1)
+
+    def enable_only_rx_irq(self) -> None:
+        """Enable only RX IRQ in IRQ_ENABLE register."""
+        self.write_register(Registers.IRQ_ENABLE, 1)
+
+    def disable_all_irqs(self) -> None:
+        """Disable all IRQs in IRQ_ENABLE register."""
+        self.write_register(Registers.IRQ_ENABLE, 0)
+
+    def get_rx_data_len(self) -> int:
+        """Read the RX_STATUS register and get the length bits."""
+        # TODO Verify other bits?
+        rx_status = self.read_register(Registers.RX_STATUS)
+        data_len = rx_status & 511
+        return data_len
+
+    def read_received_data(self) -> bytes:
+        """Returns received data, empty bytes, if none."""
+        data_len = self.get_rx_data_len()
+        if data_len == 0:
+            return b""
+        return self.read_data(data_len)
 
     def send_and_receive(self, bits: int, data: bytes) -> bytes:
         """Send data and receive response.
@@ -577,24 +648,18 @@ class PN5180Helper(PN5180Proxy):
         Raises:
             PN5180Error: If communication fails.
         """
-        self.write_register(Registers.IRQ_CLEAR, 1)
-        self.write_register(Registers.IRQ_ENABLE, 1)
+        self.clear_rx_irq()
+        self.enable_only_rx_irq()
 
         self.send_data(bits, data)
 
-        if not self.wait_for_irq(100):
+        if not self.wait_for_irq(MAX_TIMEOUT):
             raise TimeoutError(f"No answer for {data[0]:x} request.")
 
-        self.write_register(Registers.IRQ_ENABLE, 0)
-        self.write_register(Registers.IRQ_CLEAR, 1)
+        self.disable_all_irqs()
+        self.clear_rx_irq()
 
-        rx_status = self.read_register(Registers.RX_STATUS)
-        data_len = rx_status & 511
-
-        if data_len == 0:
-            return b""
-
-        return self.read_data(data_len)
+        return self.read_received_data()
 
     def send_15693_request(
         self,  # pylint: disable=too-many-arguments
@@ -686,8 +751,9 @@ class PN5180Helper(PN5180Proxy):
             TimeoutError: If no response is received within timeout.
             PN5180Error: If communication with the PN5180 fails.
         """
-        self.write_register(Registers.IRQ_CLEAR, 1)
-        self.write_register(Registers.IRQ_ENABLE, 1)
+        self.clear_rx_irq()
+        self.enable_only_rx_irq()
+
         self.send_15693_request(
             command,
             parameters,
@@ -699,22 +765,51 @@ class PN5180Helper(PN5180Proxy):
             option_flag=option_flag,
             uid=uid,
         )
-        if not self.wait_for_irq(200):
+        if not self.wait_for_irq(MAX_TIMEOUT):
             raise TimeoutError(f"No answer for 0x{command:02x} request.")
 
-        self.write_register(Registers.IRQ_ENABLE, 0)
-        self.write_register(Registers.IRQ_CLEAR, 1)
+        self.disable_all_irqs()
+        self.clear_rx_irq()
 
-        rx_status = self.read_register(Registers.RX_STATUS)
-        if rx_status:
-            how_many_bytes = rx_status & 511
-            if how_many_bytes > 0:
-                data = self.read_data(how_many_bytes)
-                if data[0] & 1:
-                    raise ISO15693Error(
-                        command=command,
-                        error_code=data[1],
-                        response_data=data,
-                    )
-                return data
-        return b""
+        data = self.read_received_data()
+
+        if len(data) and data[0] & 1:
+            if len(data) < 2:
+                data += b"\xff"
+            raise ISO15693Error(
+                command=command,
+                error_code=data[1],
+                response_data=data,
+            )
+        return data
+
+    def send_and_wait_for_ack(self, bits: int, data: bytes) -> bytes:
+        """Send a request and wait for an ACK/NACK response.
+
+        Args:
+            bits: Number of valid bits in the data to send.
+            data: Payload bytes to transmit.
+
+        Returns:
+            The raw response bytes received from the PN5180.
+
+        Raises:
+            TimeoutError: If no response is received within the configured timeout.
+        """
+        self.turn_on_tx_crc()
+        self.turn_off_rx_crc()
+        self.change_mode_to_transceiver()
+
+        self.clear_rx_irq()
+        self.enable_only_rx_irq()
+
+        self.send_data(bits, data)
+
+        if not self.wait_for_irq(MAX_TIMEOUT):
+            raise TimeoutError(f"No answer for 0x{data[0]:02x} request.")
+
+        self.clear_rx_irq()
+        self.disable_all_irqs()
+
+        data = self.read_received_data()
+        return data

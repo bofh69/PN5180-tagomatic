@@ -43,6 +43,24 @@ class ISO15693Error(Exception):
         )
 
 
+class MemoryWriteError(Exception):
+    """Exception raised when memory_write returns an error response from card."""
+
+    def __init__(self, error_code: int, response_data: bytes) -> None:
+        """Initialize MemoryWriteError.
+
+        Args:
+            error_code: The error code from the tag's error response.
+            response_data: The full error response data from the tag.
+        """
+        self.error_code = error_code
+        self.response_data = response_data
+        super().__init__(
+            f"MemoryWrite command failed "
+            f"with error code 0x{error_code:02X}"
+        )
+
+
 class MifareKeyType(IntEnum):
     """Mifare authentication key types."""
 
