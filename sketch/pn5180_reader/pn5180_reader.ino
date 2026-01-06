@@ -302,6 +302,20 @@ static Object<int, uint32_t> read_register(uint8_t addr) {
   return result;
 }
 
+static int test_it() {
+  auto first = read_register(0);  // SYSTEM_CONFIG
+  for (int i = 0; i < 1000; ++i) {
+    auto now = read_register(0);
+    if (get<0>(now) < 0) {
+      return -1;
+    }
+    if (get<1>(now) != get<1>(first)) {
+      return -2;
+    }
+  }
+  return 0;
+}
+
 /**
  * Read multiple registers from the PN5180 NFC frontend.
  * Reads from up to 18 addresses.
@@ -785,6 +799,7 @@ void loop() {
   // clang-format off
   interface(Serial,
     reset, "reset: Reset the PN5180 NFC frontend.",
+    test_it, "test_it: Test the frontend. @return: 0 on ok",
     write_register, "write_register: Write to a PN5180 register. @addr: register address. @value: 32 bit value to write. @return: < 0 at failure.",
     write_register_or_mask, "write_register_or_mask: Write to a PN5180 register OR the old value. @addr: register address. @value: 32 bit mask to OR. @return: 0 at success, < 0 at failure.",
     write_register_and_mask, "write_register_and_mask: Write to a PN5180 register AND the old value. @addr: register address. @value: 32 bit mask to AND. @return: 0 at success, < 0 at failure.",
