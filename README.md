@@ -5,9 +5,6 @@ SPDX-FileCopyrightText: 2026 PN5180-tagomatic contributors
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
-**This is a work in progress. Some things described here doesn't work yet,
-and bug reports are not welcome at this time.**
-
 USB based RFID reader with Python interface
 
 [![Python CI](https://github.com/bofh69/PN5180-tagomatic/workflows/Python%20CI/badge.svg)](https://github.com/bofh69/PN5180-tagomatic/actions)
@@ -22,10 +19,17 @@ Frontend module and a Raspberry Pi Pico (Zero).
 
 ## Features
 
-- Python library for easy integration
-- Raspberry Pi Pico firmware for PN5180 NFC module
-- USB serial communication
-- Cross-platform support (Linux, Windows, macOS)
+- Python library for easy integration.
+- Uses USB serial communication to the reader.
+- Cross-platform support (Linux, Windows, macOS).
+- Finds and selects single ISO/IEC 14443 cards.
+- Uses NFC FORUM commands to read/write 14443-A cards' memories.
+- Can authenticate against Mifare classic cards to read their memories.
+- Finds ISO/IEC 15693 cards, uses 15693-3 commands to read/write their memories.
+
+Multiple cards in the RFID field is currently not really supported,
+the hardware and arduino sketch supports all commands for it.
+
 
 ## Installation
 
@@ -69,21 +73,7 @@ with PN5180("/dev/ttyACM0") as reader:
 
 ### Example Program
 
-An example program is provided in the `examples/` directory:
-
-```bash
-# Run the basic example
-python examples/basic_example.py /dev/ttyACM0
-
-# On Windows
-python examples/basic_example.py COM3
-```
-
-The example demonstrates:
-- Opening a serial connection to the device
-- Creating a PN5180 reader instance
-- Calling the reset function via SimpleRPC
-- Proper resource cleanup using context managers
+A few simple example programs are in the `examples/` directory.
 
 ## Development
 
@@ -96,13 +86,13 @@ cd PN5180-tagomatic
 
 # Install development dependencies
 pip install -e .[dev]
+# or:
+make install-dev
 ```
 
 ### Running tests
 
-```bash
-pytest
-```
+`pytest` or `make test`
 
 ### Code quality checks
 
@@ -135,4 +125,5 @@ Contributions are welcome! Please ensure that:
 ## Acknowledgments
 
 This project uses FastLED by Daniel Garcia et al.
-It also uses SimpleRPC by Jeroen F.J. Laros, Chris Flesher et al.
+
+SimpleRPC by Jeroen F.J. Laros, Chris Flesher et al is also used.
