@@ -5,6 +5,8 @@
 
 from unittest.mock import MagicMock, Mock, call, patch
 
+import pytest
+
 from pn5180_tagomatic import PN5180, Registers
 
 
@@ -314,8 +316,6 @@ def test_card_write_memory_with_ack(mock_interface_class: Mock) -> None:
 @patch("pn5180_tagomatic.proxy.Interface")
 def test_card_write_memory_with_nak(mock_interface_class: Mock) -> None:
     """Test writing memory to non-MIFARE card with NAK response."""
-    import pytest
-
     tty = "/dev/ttyACM0"
     mock_interface = MagicMock()
     mock_interface_class.return_value = mock_interface
