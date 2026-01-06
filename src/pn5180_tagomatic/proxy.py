@@ -595,7 +595,6 @@ class PN5180Helper(PN5180Proxy):
 
         Enables CRC calculation and verification for transmission and reception.
         """
-
         self.turn_on_rx_crc()
         self.turn_on_tx_crc()
 
@@ -774,11 +773,12 @@ class PN5180Helper(PN5180Proxy):
         data = self.read_received_data()
 
         if len(data) and data[0] & 1:
-            if len(data) < 2:
-                data += b"\xff"
+            error_code = 0xFF
+            if len(data) >= 2:
+                error_code = data[1]
             raise ISO15693Error(
                 command=command,
-                error_code=data[1],
+                error_code=error_code,
                 response_data=data,
             )
         return data
