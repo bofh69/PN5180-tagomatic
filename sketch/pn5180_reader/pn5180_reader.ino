@@ -22,22 +22,25 @@
 #include <simpleRPC.h>
 
 // Error codes for negative return values
+#define ERR_PROTOCOL 1
+#define ERR_WAS_RESET 2
+
 enum ErrorCode {
-  ERR_DATA_LEN_TOO_LARGE = -1,
-  ERR_SEND_BUSY_CHECK_FIRST = -2,
-  ERR_SEND_BUSY_CHECK_SECOND = -3,
-  ERR_SEND_BUSY_CHECK_THIRD = -4,
-  ERR_RECV_BUSY_CHECK_FIRST = -5,
-  ERR_RECV_BUSY_CHECK_SECOND = -6,
-  ERR_RECV_BUSY_CHECK_THIRD = -7,
-  ERR_TOO_MANY_ELEMENTS = -8,
-  ERR_TOO_MANY_ADDRESSES = -9,
-  ERR_EEPROM_DATA_TOO_LARGE = -10,
-  ERR_LEN_TOO_LARGE = -11,
-  ERR_TOO_MANY_PARAMS = -12,
-  ERR_SELECT_COMMAND_TOO_LARGE = -13,
-  ERR_TX_DATA_TOO_LARGE = -14,
-  ERR_SEND_DATA_TOO_LARGE = -15
+  ERR_DATA_LEN_TOO_LARGE = -(4 * 1 + ERR_PROTOCOL),
+  ERR_SEND_BUSY_CHECK_FIRST = -(4 * 2 + ERR_WAS_RESET),
+  ERR_SEND_BUSY_CHECK_SECOND = -(4 * 3 + ERR_WAS_RESET),
+  ERR_SEND_BUSY_CHECK_THIRD = -(4 * 4 + ERR_WAS_RESET),
+  ERR_RECV_BUSY_CHECK_FIRST = -(4 * 5 + ERR_WAS_RESET),
+  ERR_RECV_BUSY_CHECK_SECOND = -(4 * 6 + ERR_WAS_RESET),
+  ERR_RECV_BUSY_CHECK_THIRD = -(4 * 7 + ERR_WAS_RESET),
+  ERR_TOO_MANY_ELEMENTS = -(4 * 8 + ERR_PROTOCOL),
+  ERR_TOO_MANY_ADDRESSES = -(4 * 9 + ERR_PROTOCOL),
+  ERR_EEPROM_DATA_TOO_LARGE = -(4 * 10 + ERR_PROTOCOL),
+  ERR_LEN_TOO_LARGE = -(4 * 11 + ERR_PROTOCOL),
+  ERR_TOO_MANY_PARAMS = -(4 * 12 + ERR_PROTOCOL),
+  ERR_SELECT_COMMAND_TOO_LARGE = -(4 * 13 + ERR_PROTOCOL),
+  ERR_TX_DATA_TOO_LARGE = -(4 * 14 + ERR_PROTOCOL),
+  ERR_SEND_DATA_TOO_LARGE = -(4 * 15 + ERR_PROTOCOL)
 };
 
 // SPI commands for PN5180:
@@ -80,21 +83,29 @@ static const unsigned long LED_DATA_PIN = 16;
 // Colors:
 static const CRGB WEAK_RED = 0x010000;
 static const CRGB RED = 0x100000;
+static const CRGB DIMMER_RED = 0x080000;
 static const CRGB GREEN = 0x000800;
+static const CRGB DIMMER_GREEN = 0x000200;
 static const CRGB BLUE = 0x000008;
 
-static CRGB led_value = WEAK_RED;
+static const CRGB COLOR_DISCONNECTED = WEAK_RED;
+static const CRGB COLOR_TX = RED;
+static const CRGB COLOR_RX = BLUE;
+
+static CRGB led_value = COLOR_DISCONNECTED;
 
 static arduino::MbedSPI PN_SPI(PN5180_MISO, PN5180_MOSI, PN5180_SCK);
-static const SPISettings PN_SPI_SETTINGS(125000, MSBFIRST, SPI_MODE0);
+static const SPISettings PN_SPI_SETTINGS(2000000, MSBFIRST, SPI_MODE0);
 
 static void set_color(CRGB color) {
-  led_value = color;
-  FastLED.show();
+  if (led_value != color) {
+    led_value = color;
+    FastLED.show();
+  }
 }
 
 static void log(const char msg[]) {
-  Serial.println(msg);
+  // Serial.println(msg);
 }
 
 static bool wait_busy_is(PinStatus value, const unsigned long timeout = 800) {
@@ -104,7 +115,8 @@ static bool wait_busy_is(PinStatus value, const unsigned long timeout = 800) {
       return true;
     }
   }
-  return digitalRead(PN5180_BUSY) == value;
+  reset();
+  return false;
 }
 
 static int send_spi_data(const uint8_t* data, size_t data_len) {
@@ -298,6 +310,20 @@ static Object<int, uint32_t> read_register(uint8_t addr) {
   return result;
 }
 
+static int test_it() {
+  auto first = read_register(0);  // SYSTEM_CONFIG
+  for (int i = 0; i < 1000; ++i) {
+    auto now = read_register(0);
+    if (get<0>(now) < 0) {
+      return -1;
+    }
+    if (get<1>(now) != get<1>(first)) {
+      return -2;
+    }
+  }
+  return 0;
+}
+
 /**
  * Read multiple registers from the PN5180 NFC frontend.
  * Reads from up to 18 addresses.
@@ -429,6 +455,7 @@ static int16_t write_tx_data(Vector<uint8_t>& values) {
  * Negative return numbers are errors.
  */
 static int16_t send_data(uint8_t bits, Vector<uint8_t>& values) {
+  set_color(COLOR_TX);
   uint8_t buffer[262];
   if (values.size > 260) {
     log("Too much data to write");
@@ -734,6 +761,7 @@ static bool is_irq_set() {
  * Returns IRQ status.
  */
 static bool wait_for_irq(unsigned long timeout) {
+  set_color(COLOR_RX);
   auto start = millis();
   while ((millis() - start) <= timeout) {
     if (is_irq_set()) {
@@ -760,8 +788,6 @@ void setup() {
     ;  // Wait for serial port to connect
   }
 
-  set_color(BLUE);
-
   // Initialize pins
   pinMode(PN5180_NSS, OUTPUT);
   digitalWrite(PN5180_NSS, HIGH);
@@ -781,6 +807,7 @@ void loop() {
   // clang-format off
   interface(Serial,
     reset, "reset: Reset the PN5180 NFC frontend.",
+    test_it, "test_it: Test the frontend. @return: 0 on ok",
     write_register, "write_register: Write to a PN5180 register. @addr: register address. @value: 32 bit value to write. @return: < 0 at failure.",
     write_register_or_mask, "write_register_or_mask: Write to a PN5180 register OR the old value. @addr: register address. @value: 32 bit mask to OR. @return: 0 at success, < 0 at failure.",
     write_register_and_mask, "write_register_and_mask: Write to a PN5180 register AND the old value. @addr: register address. @value: 32 bit mask to AND. @return: 0 at success, < 0 at failure.",
@@ -806,14 +833,18 @@ void loop() {
 
   static bool has_reset_after_disconnect = false;
   if (!Serial) {
-    set_color(WEAK_RED);
+    set_color(COLOR_DISCONNECTED);
     if (!has_reset_after_disconnect) {
       reset();
       has_reset_after_disconnect = true;
       delay(50);
     }
   } else {
-    set_color(led_value == RED ? GREEN : RED);
+    auto val = millis() % 1500;
+    if (val > 750) {
+      val = 1500 - val;
+    }
+    set_color((1 + val * 0x9 / 750) << 8);
     has_reset_after_disconnect = false;
   }
 }

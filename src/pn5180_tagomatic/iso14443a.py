@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .constants import ISO14443ACommand, MifareKeyType
+from .constants import ISO14443ACommand, MemoryWriteError, MifareKeyType
 
 if TYPE_CHECKING:
     from .proxy import PN5180Helper
@@ -50,6 +50,7 @@ class ISO14443ACard:
 
         Raises:
             PN5180Error: If communication with the card fails.
+            TimeoutError: If card does not respond.
         """
         self._reader.turn_on_crc()
 
@@ -81,11 +82,11 @@ class ISO14443ACard:
 
         Raises:
             PN5180Error: If communication with the card fails.
+            TimeoutError: If card does not respond.
+            MemoryWriteError: If memory write fails.
         """
-        self._reader.turn_on_crc()
 
-        # Send WRITE command
-        self._reader.send_data(
+        response = self._reader.send_and_wait_for_ack(
             0,
             bytes(
                 [
@@ -99,7 +100,17 @@ class ISO14443ACard:
             ),
         )
 
-        # TODO Check ACK status...
+        if len(response) == 0:
+            raise MemoryWriteError(
+                error_code=0xFF,
+                response_data=b"",
+            )
+
+        if (response[0] & 0xF) != 0xA:
+            raise MemoryWriteError(
+                error_code=response[0],
+                response_data=response,
+            )
 
     def read_mifare_memory(
         self,
@@ -125,6 +136,7 @@ class ISO14443ACard:
         Raises:
             PN5180Error: If communication with the card fails.
             ValueError: If UID is not 4 bytes (not MIFARE Classic).
+            TimeoutError: If card does not respond.
         """
         if len(self._uid) != 4:
             raise ValueError(
