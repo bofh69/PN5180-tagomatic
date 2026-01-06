@@ -83,17 +83,25 @@ static const unsigned long LED_DATA_PIN = 16;
 // Colors:
 static const CRGB WEAK_RED = 0x010000;
 static const CRGB RED = 0x100000;
+static const CRGB DIMMER_RED = 0x080000;
 static const CRGB GREEN = 0x000800;
+static const CRGB DIMMER_GREEN = 0x000200;
 static const CRGB BLUE = 0x000008;
 
-static CRGB led_value = WEAK_RED;
+static const CRGB COLOR_DISCONNECTED = WEAK_RED;
+static const CRGB COLOR_TX = RED;
+static const CRGB COLOR_RX = BLUE;
+
+static CRGB led_value = COLOR_DISCONNECTED;
 
 static arduino::MbedSPI PN_SPI(PN5180_MISO, PN5180_MOSI, PN5180_SCK);
 static const SPISettings PN_SPI_SETTINGS(2000000, MSBFIRST, SPI_MODE0);
 
 static void set_color(CRGB color) {
-  led_value = color;
-  FastLED.show();
+  if (led_value != color) {
+    led_value = color;
+    FastLED.show();
+  }
 }
 
 static void log(const char msg[]) {
@@ -447,6 +455,7 @@ static int16_t write_tx_data(Vector<uint8_t>& values) {
  * Negative return numbers are errors.
  */
 static int16_t send_data(uint8_t bits, Vector<uint8_t>& values) {
+  set_color(COLOR_TX);
   uint8_t buffer[262];
   if (values.size > 260) {
     log("Too much data to write");
@@ -752,6 +761,7 @@ static bool is_irq_set() {
  * Returns IRQ status.
  */
 static bool wait_for_irq(unsigned long timeout) {
+  set_color(COLOR_RX);
   auto start = millis();
   while ((millis() - start) <= timeout) {
     if (is_irq_set()) {
@@ -777,8 +787,6 @@ void setup() {
   while (!Serial) {
     ;  // Wait for serial port to connect
   }
-
-  set_color(BLUE);
 
   // Initialize pins
   pinMode(PN5180_NSS, OUTPUT);
@@ -825,14 +833,18 @@ void loop() {
 
   static bool has_reset_after_disconnect = false;
   if (!Serial) {
-    set_color(WEAK_RED);
+    set_color(COLOR_DISCONNECTED);
     if (!has_reset_after_disconnect) {
       reset();
       has_reset_after_disconnect = true;
       delay(50);
     }
   } else {
-    set_color(led_value == RED ? GREEN : RED);
+    auto val = millis() % 1500;
+    if (val > 750) {
+      val = 1500 - val;
+    }
+    set_color((1 + val * 0x9 / 750) << 8);
     has_reset_after_disconnect = false;
   }
 }
