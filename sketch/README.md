@@ -6,40 +6,50 @@ SPDX-License-Identifier: GPL-3.0-or-later
 # PN5180 RFID Reader Firmware
 
 This directory contains the Arduino sketch for the Raspberry Pi Pico
-firmware that interfaces with the PN5180 NFC module.
+firmware that interfaces with the NXP PN5180 NFC module.
 
 ## Hardware Requirements
 
 - USB cable for connection to host computer
-- Raspberry Pi Pico (the pins will need to be modified) or Raspberry Pi Pico Zero
-- PN5180 NFC Frontend Module card
+- Raspberry Pi Pico (the configured pins will then need to be modified) or a Raspberry Pi Pico Zero
+- NXP PN5180 NFC Frontend Module card
 
-My prototype board with horrible soldering:
+My terrible prototype board:
 ![Board](board.jpg)
 
 ## Pin Connections
 
 | PN5180 Pin | Raspberry Pi Pico Zero Pin |
 |------------|----------------------------|
+| MISO       | GP0 (SPI0 RX)              |
 | NSS        | GP1                        |
+| SCK        | GP2 (SPI0 SCK)             |
+| MOSI       | GP3 (SPI0 TX)              |
 | BUSY       | GP4                        |
 | RST        | GP7                        |
-| MOSI       | GP3 (SPI0 TX)              |
-| MISO       | GP0 (SPI0 RX)              |
-| SCK        | GP2 (SPI0 SCK)             |
 | +3.3V      | 3.3V                       |
 | +5V        | 5V                         |
 | GND        | GND                        |
 | GPIO       | -                          |
 | IRQ        | GP6                        |
 | AUX        | -                          |
-| REQ        | -                          |
+| REQ        | (GP9)                      |
+
+The SPI interface is configured to run at 2 Mbps.
+It might be too fast for some hardware (depending on the cables
+etc). It is configured in the source code. It's possible to run
+at lower speeds. I first ran it at 125000 bps.
+
+The code doesn't use REQ yet and as seen from the photo,
+I've not even connected the pin. It is used for firmware updates
+of the PN5180. I've not implemented that, and I probably won't.
+
 
 ## Building and Uploading
 
 ### Prerequisites
 
-The firmware requires the PN5180, FastLED and SimpleRPC libraries.
+The firmware requires the FastLED and SimpleRPC libraries.
 Install them using one of these methods:
 
 **Arduino IDE:**
@@ -50,7 +60,6 @@ Install them using one of these methods:
 ```bash
 arduino-cli lib install simpleRPC
 arduino-cli lib install FastLED
-arduino-cli lib install PN5180
 ```
 
 ### Using Arduino IDE
@@ -61,7 +70,7 @@ arduino-cli lib install PN5180
    - Search for "pico" and install "Arduino Mbed OS RP2040 Boards by Arduino" (version 4.4.1 was used).
 3. Install the libraries (see Prerequisites above)
 4. Press the select board pulldown: "Select Other Board and Port"
-5. Search for pico, choose "Raspberry Pi Pico Zero"
+5. Search for pico, choose "Raspberry Pi Pico"
 5. Select Port: Tools > Port > (your Pico's port)
 6. Upload the sketch (the arrow)
 
@@ -71,26 +80,32 @@ This is untested...
 
 ```bash
 # Install board support
-arduino-cli core install rp2040:rp2040
+arduino-cli core install arduino:mbed_rp2040
 
 # Install the libraries, see [Prerequisites]:
 arduino-cli lib install ...
 
 # Compile
-arduino-cli compile --fqbn rp2040:rp2040:rpipico sketch/pn5180_reader
+arduino-cli compile --fqbn arduino:mbed_rp2040:pico sketch/pn5180_reader
 
 # Upload (replace /dev/ttyACM0 with your port)
-arduino-cli upload -p /dev/ttyACM0 --fqbn rp2040:rp2040:rpipico sketch/pn5180_reader
+arduino-cli upload -p /dev/ttyACM0 --fqbn arduino:mbed_rp2040:pico sketch/pn5180_reader
 ```
 
 ## Protocol
 
-The firmware communicates with the host computer over USB serial at 115200 baud using the SimpleRPC protocol.
+The firmware communicates with the host computer over USB serial using the SimpleRPC protocol.
 
 ### Available Functions
 
-See the code for their documentations
+See the code for their documentations or run:
+```sh
+simple_rpc list /dev/ttyACM0
+```
 
 ### SimpleRPC
 
-SimpleRPC is a simple RPC (Remote Procedure Call) protocol for Arduino that allows Python programs to call Arduino functions over serial. The protocol is documented at: https://simplerpc.readthedocs.io/
+SimpleRPC is a simple RPC (Remote Procedure Call) protocol for Arduino
+that allows Python programs to call Arduino functions over serial.
+The API and protocol is documented at:
+[https://simplerpc.readthedocs.io/](https://simplerpc.readthedocs.io/)
