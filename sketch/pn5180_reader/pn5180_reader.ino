@@ -22,22 +22,25 @@
 #include <simpleRPC.h>
 
 // Error codes for negative return values
+#define ERR_PROTOCOL 1
+#define ERR_WAS_RESET 2
+
 enum ErrorCode {
-  ERR_DATA_LEN_TOO_LARGE = -1,
-  ERR_SEND_BUSY_CHECK_FIRST = -2,
-  ERR_SEND_BUSY_CHECK_SECOND = -3,
-  ERR_SEND_BUSY_CHECK_THIRD = -4,
-  ERR_RECV_BUSY_CHECK_FIRST = -5,
-  ERR_RECV_BUSY_CHECK_SECOND = -6,
-  ERR_RECV_BUSY_CHECK_THIRD = -7,
-  ERR_TOO_MANY_ELEMENTS = -8,
-  ERR_TOO_MANY_ADDRESSES = -9,
-  ERR_EEPROM_DATA_TOO_LARGE = -10,
-  ERR_LEN_TOO_LARGE = -11,
-  ERR_TOO_MANY_PARAMS = -12,
-  ERR_SELECT_COMMAND_TOO_LARGE = -13,
-  ERR_TX_DATA_TOO_LARGE = -14,
-  ERR_SEND_DATA_TOO_LARGE = -15
+  ERR_DATA_LEN_TOO_LARGE = -(4 * 1 + ERR_PROTOCOL),
+  ERR_SEND_BUSY_CHECK_FIRST = -(4 * 2 + ERR_WAS_RESET),
+  ERR_SEND_BUSY_CHECK_SECOND = -(4 * 3 + ERR_WAS_RESET),
+  ERR_SEND_BUSY_CHECK_THIRD = -(4 * 4 + ERR_WAS_RESET),
+  ERR_RECV_BUSY_CHECK_FIRST = -(4 * 5 + ERR_WAS_RESET),
+  ERR_RECV_BUSY_CHECK_SECOND = -(4 * 6 + ERR_WAS_RESET),
+  ERR_RECV_BUSY_CHECK_THIRD = -(4 * 7 + ERR_WAS_RESET),
+  ERR_TOO_MANY_ELEMENTS = -(4 * 8 + ERR_PROTOCOL),
+  ERR_TOO_MANY_ADDRESSES = -(4 * 9 + ERR_PROTOCOL),
+  ERR_EEPROM_DATA_TOO_LARGE = -(4 * 10 + ERR_PROTOCOL),
+  ERR_LEN_TOO_LARGE = -(4 * 11 + ERR_PROTOCOL),
+  ERR_TOO_MANY_PARAMS = -(4 * 12 + ERR_PROTOCOL),
+  ERR_SELECT_COMMAND_TOO_LARGE = -(4 * 13 + ERR_PROTOCOL),
+  ERR_TX_DATA_TOO_LARGE = -(4 * 14 + ERR_PROTOCOL),
+  ERR_SEND_DATA_TOO_LARGE = -(4 * 15 + ERR_PROTOCOL)
 };
 
 // SPI commands for PN5180:
@@ -104,7 +107,8 @@ static bool wait_busy_is(PinStatus value, const unsigned long timeout = 800) {
       return true;
     }
   }
-  return digitalRead(PN5180_BUSY) == value;
+  reset();
+  return false;
 }
 
 static int send_spi_data(const uint8_t* data, size_t data_len) {
