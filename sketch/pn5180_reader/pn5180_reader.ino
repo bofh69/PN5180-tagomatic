@@ -89,7 +89,7 @@ static const CRGB BLUE = 0x000008;
 static CRGB led_value = WEAK_RED;
 
 static arduino::MbedSPI PN_SPI(PN5180_MISO, PN5180_MOSI, PN5180_SCK);
-static const SPISettings PN_SPI_SETTINGS(125000, MSBFIRST, SPI_MODE0);
+static const SPISettings PN_SPI_SETTINGS(2000000, MSBFIRST, SPI_MODE0);
 
 static void set_color(CRGB color) {
   led_value = color;
