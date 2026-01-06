@@ -97,7 +97,7 @@ static void set_color(CRGB color) {
 }
 
 static void log(const char msg[]) {
-  Serial.println(msg);
+  // Serial.println(msg);
 }
 
 static bool wait_busy_is(PinStatus value, const unsigned long timeout = 800) {
