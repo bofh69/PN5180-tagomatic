@@ -61,10 +61,10 @@ jobs:
       
       - name: Compile sketch for ${{ matrix.board.name }}
         run: |
-          arduino-cli compile --fqbn ${{ matrix.board.fqbn }} sketch/pn5180_reader
+          arduino-cli compile -e --fqbn ${{ matrix.board.fqbn }} sketch/pn5180_reader
       
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: sketch-${{ matrix.board.name }}
-          path: sketch/pn5180_reader/build/
+          path: sketch/pn5180_reader/build/*/*.u2f
