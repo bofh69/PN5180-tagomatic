@@ -145,6 +145,7 @@ class ISO14443ACommand(IntEnum):
     ANTICOLLISION_CL2 = 0x95  # Anticollision/Select Cascade Level 2
     ANTICOLLISION_CL3 = 0x97  # Anticollision/Select Cascade Level 3
     ANTICOLLISION = 0x20  # Anticollision command parameter
+    HLTA = 0x50  # HALT
     READ = 0x30  # Read command
     REQA = 0x26  # Request A
     SELECT = 0x70  # Select command parameter

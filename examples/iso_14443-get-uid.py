@@ -38,7 +38,7 @@ def main() -> int:
             with reader.start_session(0x00, 0x80) as session:
                 # Connect to a card
                 try:
-                    card = session.connect_iso14443a()
+                    card = session.connect_one_iso14443a()
                     print(f"UID: {card.uid.hex(':')}")
                 except TimeoutError as e:
                     print(f"Error: {e}")

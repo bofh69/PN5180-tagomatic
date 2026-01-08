@@ -31,7 +31,7 @@ class PN5180RFSession:
         self._reader = reader
         self._active = True
 
-    def connect_iso14443a(self) -> ISO14443ACard:
+    def connect_one_iso14443a(self) -> ISO14443ACard:
         """Connect to an ISO 14443-A card.
 
         This method performs the ISO 14443-A anticollision protocol to
@@ -48,10 +48,76 @@ class PN5180RFSession:
         if not self._active:
             raise RuntimeError("Communication session is no longer active")
 
-        uid = self._get_iso14443a_uid()
+        uid = self._get_one_iso14443a_uid()
         return ISO14443ACard(self._reader, uid)
 
-    def _get_iso14443a_uid(self) -> bytes:
+    def connect_iso14443a(self, uid: bytes) -> ISO14443ACard | None:
+        # Activate card first.
+
+        self._reader.turn_off_crc()
+        self._reader.change_mode_to_transceiver()
+        atqa_data = self._send_atqa()
+        if len(atqa_data) == 0:
+            # No cards left in field.
+            return None
+
+        self._reader.turn_on_crc()
+
+        uid_list = list(uid)
+        if len(uid) == 4:
+            sak = self._send_select_for_cl(0, uid_list)
+            if len(sak) == 0:
+                return None
+        else:
+            sak = self._send_select_for_part(0, uid_list[0:3])
+            if len(sak) == 0:
+                return None
+
+            if len(uid) == 7:
+                sak = self._send_select_for_cl(1, uid_list[3:7])
+                if len(sak) == 0:
+                    return None
+            else:
+                sak = self._send_select_for_part(1, uid_list[3:6])
+                if len(sak) == 0:
+                    return None
+
+            if len(uid) == 10:
+                sak = self._send_select_for_cl(2, uid_list[6:])
+                if len(sak) == 0:
+                    return None
+
+        return ISO14443ACard(self._reader, uid)
+
+    @staticmethod
+    def _is_valid_bcc(data: bytes) -> bool:
+        """Verify BCC byte"""
+        if len(data) != 5:
+            return False
+        bcc = data[0] ^ data[1] ^ data[2] ^ data[3]
+        return bcc == data[4]
+
+    def _get_coll_bit(self) -> None | int:
+        """Get collision bit"""
+        rx_status = self._reader.read_register(Registers.RX_STATUS)
+
+        if rx_status & (1 << 18):
+            coll_bit = (rx_status >> 19) & 63
+            return coll_bit
+
+        return None
+
+    @staticmethod
+    def _get_cmd_for_level(level: int) -> int:
+        if level == 0:
+            return ISO14443ACommand.ANTICOLLISION_CL1
+        if level == 1:
+            return ISO14443ACommand.ANTICOLLISION_CL2
+        if level == 2:
+            return ISO14443ACommand.ANTICOLLISION_CL3
+        raise ValueError("level argument is out of range")
+
+    def _get_one_iso14443a_uid(self) -> bytes:
         """Get the UID of an ISO 14443-A card using anticollision protocol.
 
         Returns:
@@ -62,133 +128,196 @@ class PN5180RFSession:
             ValueError: If the card's response is invalid.
             TimeoutError: If no card responds.
         """
-        self._reader.turn_off_crc()
+        uids = self.get_all_iso14443a_uids(
+            wake_up_first=True,
+            halt_when_found=False,
+            max_cards=1,
+        )
+        if len(uids) == 0:
+            return b""
+        return uids[0]
 
-        # Clear all IRQs
-        self._reader.write_register(Registers.IRQ_CLEAR, 0x000FFFFF)
+    @staticmethod
+    def _get_nvb_and_final_bits(
+        data_len: int, coll_bit: int
+    ) -> tuple[int, int]:
+        final_bits = coll_bit % 8
+        nvb = ((data_len + 2) << 4) | final_bits
+        if final_bits != 0:
+            nvb -= 0x10
+        return (nvb, final_bits)
 
-        # Configure IRQ ENABLE register, turn on RX_IRQ_EN
-        self._reader.write_register_or_mask(Registers.IRQ_ENABLE, 1)
+    def _send_atqa(self) -> bytes:
+        return self._reader.send_and_receive(7, bytes([ISO14443ACommand.WUPA]))
 
-        self._reader.change_mode_to_transceiver()
+    def _send_select_for_cl(self, cl: int, uid: list[int]) -> bytes:
+        bcc = uid[0] ^ uid[1] ^ uid[2] ^ uid[3]
+        sak = bytes([uid[0], uid[1], uid[2], uid[3], bcc])
+        cmd = self._get_cmd_for_level(cl)
+        request = bytes([cmd, ISO14443ACommand.SELECT]) + sak
+        sak = self._reader.send_and_receive(0, request)
+        return sak
 
-        # Send WUPA command (0x52)
-        self._reader.send_data(7, bytes([ISO14443ACommand.WUPA]))
+    def _send_select_for_part(self, cl: int, uid_part: list[int]) -> bytes:
+        return self._send_select_for_cl(cl, [0x88] + uid_part)
 
-        # Wait for reception
-        self._reader.wait_for_irq(1000)
+    def get_all_iso14443a_uids(
+        self,
+        wake_up_first: bool = True,
+        halt_when_found: bool = True,
+        max_cards: int = 32,
+    ) -> list[bytes]:
+        """Get the UIDs of ISO 14443-A cards using anticollision protocol.
 
-        # Read ATQA response
-        rx_status = self._reader.read_register(Registers.RX_STATUS)
-        data_len = rx_status & 511
+        Cards may be halted after discovery.
 
-        if data_len < 1:
-            raise TimeoutError("No card answered to WUPA command")
+        If called again without "wake_up_first", cards that have previously
+        been halted might not be found again. It depends on the cards' UIDs
+        relative to each other.
 
-        data = self._reader.read_data(data_len)
-        uid_len = data[0] // 64
+        Args:
+            wake_up_first: Send WUPA first to wake up halted cards.
+            halt_when_found: Send HLTA to found cards.
+            max_cards: The maximum number of cards that can be found.
 
-        uid = []
-        cascade_tag = -1
+        Returns:
+            A list of the card's UIDs as bytes.
 
-        for cl in range(uid_len + 1):
-            # 0 == 4 bytes, 1 == 7 bytes, 2 == 10 bytes
+        Raises:
+            PN5180Error: If communication with the card fails.
+            ValueError: If the card's response is invalid.
+        """
+        uids: list[bytes] = []
+        discovery_stack: list[tuple[int, bytes, int, list[int], bool]] = [
+            (0, b"", 0, [], True),
+        ]
+        while len(discovery_stack) > 0:
+            (cl, mask, coll_bit, uid, restart) = discovery_stack.pop()
+
+            if restart:
+                self._reader.turn_off_crc()
+                self._reader.change_mode_to_transceiver()
+                try:
+                    cmd: int = ISO14443ACommand.REQA
+                    if wake_up_first:
+                        cmd = ISO14443ACommand.WUPA
+                    atqa_data = self._reader.send_and_receive(7, bytes([cmd]))
+                    if len(atqa_data) == 0:
+                        # No longer any more cards in the field.
+                        return uids
+                    if len(uid) >= 3:
+                        # This isn't tested, I don't have cards that
+                        # collide in the second part only
+                        self._reader.turn_on_crc()
+                        sak = self._send_select_for_part(0, uid)
+                        if len(sak) == 0:
+                            # It no longer is in the field
+                            continue
+
+                    if len(uid) >= 6:
+                        # This isn't tested, I don't have cards that
+                        # collide in the third part only
+                        sak = self._send_select_for_part(1, uid[4:])
+                        if len(sak) == 0:
+                            # It no longer is in the field
+                            continue
+                except TimeoutError:
+                    # It no longer is in the field
+                    continue
+                except ValueError as e:
+                    print("Got unexpected error:", e)
+                    continue
+
+            # ATQA uid length bits: 0 == 4 bytes, 1 == 7 bytes, 2 == 10 bytes
 
             # Send Anticollision CL X
-            if cl == 0:
-                data = self._reader.send_and_receive(
-                    0,
-                    bytes(
-                        [
-                            ISO14443ACommand.ANTICOLLISION_CL1,
-                            ISO14443ACommand.ANTICOLLISION,
-                        ]
-                    ),
-                )
-            elif cl == 1:
-                data = self._reader.send_and_receive(
-                    0,
-                    bytes(
-                        [
-                            ISO14443ACommand.ANTICOLLISION_CL2,
-                            ISO14443ACommand.ANTICOLLISION,
-                        ]
-                    ),
-                )
-            elif cl == 2:
-                data = self._reader.send_and_receive(
-                    0,
-                    bytes(
-                        [
-                            ISO14443ACommand.ANTICOLLISION_CL3,
-                            ISO14443ACommand.ANTICOLLISION,
-                        ]
-                    ),
+            self._reader.set_rx_crc_and_first_bit(False, 0)
+            self._reader.turn_off_tx_crc()
+            cmd = self._get_cmd_for_level(cl)
+            (nvb, final_bits) = self._get_nvb_and_final_bits(
+                len(mask), coll_bit
+            )
+
+            try:
+                self._reader.set_rx_crc_and_first_bit(False, final_bits)
+
+                new_mask = self._reader.send_and_receive(
+                    final_bits,
+                    bytes([cmd, nvb]) + mask,
                 )
 
-            if len(data) < 5:
-                raise ValueError(
-                    f"Incomplete UID response received, data_len={len(data)}"
+                if len(mask) and len(new_mask):
+                    # Combine new_mask and mask...
+                    tmp_new_mask = bytearray(mask)
+                    tmp_new_mask[-1] |= new_mask[0]
+                    if len(new_mask) > 1:
+                        tmp_new_mask += new_mask[1:]
+                    new_mask = bytes(tmp_new_mask)
+            except TimeoutError:
+                # It is no longer in the field.
+                continue
+            except ValueError as e:
+                print("Got unexpected error:", e)
+                continue
+            finally:
+                self._reader.set_rx_crc_and_first_bit(True, 0)
+
+            new_coll_bit = self._get_coll_bit()
+
+            if new_coll_bit is None:
+                # No collision
+                if not self._is_valid_bcc(new_mask):
+                    # TODO: Maybe have some maximum retry?
+                    # Retry:
+                    discovery_stack.append((cl, mask, coll_bit, uid, True))
+                    continue
+
+                self._reader.set_rx_crc_and_first_bit(True, 0)
+                self._reader.turn_on_tx_crc()
+                sak = self._send_select_for_cl(cl, list(new_mask)[0:4])
+                if len(sak) == 0:
+                    # TODO: Maybe have some maximum retry?
+                    discovery_stack.append((cl, mask, coll_bit, uid, True))
+                    continue
+
+                # Build UID
+                if sak[0] & (1 << 2) == 0:
+                    uid.append(new_mask[0])
+                uid.append(new_mask[1])
+                uid.append(new_mask[2])
+                uid.append(new_mask[3])
+                if sak[0] & (1 << 2) == 0:
+                    # All CL levels completed for this card
+                    uids.append(bytes(uid))
+                    if halt_when_found:
+                        self._reader.send_data(
+                            0, bytes([ISO14443ACommand.HLTA, 0x00])
+                        )
+                    if len(uids) >= max_cards:
+                        return uids
+                else:
+                    # Go to next CL
+                    discovery_stack.append((cl + 1, b"", 0, uid, False))
+            else:
+                # There was a collision
+                n_bytes = 1 + (new_coll_bit + 7) // 8
+                bit = new_coll_bit % 8
+
+                new_mask = bytearray(new_mask[:n_bytes])
+
+                new_mask[new_coll_bit // 8] |= 1 << bit
+                final_bit = (new_coll_bit + 1) % 8
+                # Need to restart, another is handled next.
+                discovery_stack.append(
+                    (cl, bytes(new_mask[:n_bytes]), final_bit, list(uid), True)
                 )
 
-            # Verify BCC (Block Check Character)
-            bcc = data[0] ^ data[1] ^ data[2] ^ data[3]
-            if bcc != data[4]:
-                raise ValueError("Invalid BCC in UID response")
-
-            # Verify cascade tag
-            if 0 < cl < uid_len and data[0] != cascade_tag:
-                raise ValueError("Wrong cascade tag in UID response")
-
-            # Build UID
-            if uid_len == cl:
-                uid.append(data[0])
-            elif cl == 0:
-                cascade_tag = data[0]
-            uid.append(data[1])
-            uid.append(data[2])
-            uid.append(data[3])
-
-            # Send SELECT command
-            self._reader.turn_on_crc()
-            if cl == 0:
-                _ = self._reader.send_and_receive(
-                    0,
-                    bytes(
-                        [
-                            ISO14443ACommand.ANTICOLLISION_CL1,
-                            ISO14443ACommand.SELECT,
-                        ]
-                    )
-                    + data,
+                new_mask[new_coll_bit // 8] &= 255 ^ (1 << bit)
+                # No need to restart, this is handled next.
+                discovery_stack.append(
+                    (cl, bytes(new_mask[:n_bytes]), final_bit, uid, False)
                 )
-            elif cl == 1:
-                _ = self._reader.send_and_receive(
-                    0,
-                    bytes(
-                        [
-                            ISO14443ACommand.ANTICOLLISION_CL2,
-                            ISO14443ACommand.SELECT,
-                        ]
-                    )
-                    + data,
-                )
-            elif cl == 2:
-                _ = self._reader.send_and_receive(
-                    0,
-                    bytes(
-                        [
-                            ISO14443ACommand.ANTICOLLISION_CL3,
-                            ISO14443ACommand.SELECT,
-                        ]
-                    )
-                    + data,
-                )
-
-            # Read SAK (Select Acknowledge) - already received
-            self._reader.turn_off_crc()
-
-        return bytes(uid)
+        return uids
 
     def iso15693_inventory(
         self, slots: int = 16, mask_length: int = 0
