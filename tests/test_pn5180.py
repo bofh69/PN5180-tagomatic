@@ -62,6 +62,7 @@ def test_turn_off_crc(mock_interface_class: Mock) -> None:
     tty = "/dev/ttyACM0"
     mock_interface = MagicMock()
     mock_interface.write_register_and_mask.return_value = 0
+    mock_interface.write_register_or_mask.return_value = 0
     mock_interface_class.return_value = mock_interface
 
     reader = PN5180(tty)
@@ -70,7 +71,7 @@ def test_turn_off_crc(mock_interface_class: Mock) -> None:
     assert mock_interface.write_register_and_mask.call_count == 2
     calls = mock_interface.write_register_and_mask.call_args_list
     assert call(Registers.CRC_TX_CONFIG, 0xFFFFFFFE) in calls
-    assert call(Registers.CRC_RX_CONFIG, 0xFFFFFFFE) in calls
+    assert call(Registers.CRC_RX_CONFIG, 0xFFFFFE3E) in calls
 
 
 @patch("pn5180_tagomatic.proxy.Interface")
@@ -78,6 +79,7 @@ def test_turn_on_crc(mock_interface_class: Mock) -> None:
     """Test turn_on_crc method via ll."""
     tty = "/dev/ttyACM0"
     mock_interface = MagicMock()
+    mock_interface.write_register_and_mask.return_value = 0
     mock_interface.write_register_or_mask.return_value = 0
     mock_interface_class.return_value = mock_interface
 
@@ -168,15 +170,16 @@ def test_connect_iso14443a(mock_interface_class: Mock) -> None:
 
     # Mock ATQA response (4-byte UID)
     mock_interface.read_register.side_effect = [
-        (0, 0x0002),  # RX_STATUS: 2 bytes available
-        (0, 0x0005),  # RX_STATUS: 5 bytes for UID
+        (0, 0x0002),  # RX_STATUS: 2 bytes available for ATQA
+        (0, 0x0005),  # RX_STATUS: 5 bytes for UID (anticollision)
+        (0, 0x0000),  # RX_STATUS: check collision bit (no collision)
         (0, 0x0001),  # RX_STATUS: 1 byte for SAK
     ]
 
     mock_interface.read_data.side_effect = [
         (0, [0x00, 0x00]),  # ATQA response
         (0, [0x01, 0x02, 0x03, 0x04, 0x04]),  # UID + BCC
-        (0, [0x08]),  # SAK
+        (0, [0x08]),  # SAK (bit 2 clear = complete)
     ]
 
     reader = PN5180(tty)
@@ -205,17 +208,18 @@ def test_card_read_memory(mock_interface_class: Mock) -> None:
     # Mock UID retrieval (4-byte UID for simplicity)
     mock_interface.read_register.side_effect = [
         (0, 0x0002),  # ATQA
-        (0, 0x0005),  # UID
+        (0, 0x0005),  # UID (anticollision)
+        (0, 0x0000),  # Check collision bit (no collision)
         (0, 0x0001),  # SAK
-        (0, 0x0010),  # Memory read 1
-        (0, 0x0010),  # Memory read 2
-        (0, 0x0000),  # No more data
+        (0, 0x0010),  # Memory read 1 (page 0)
+        (0, 0x0010),  # Memory read 2 (page 4)
+        (0, 0x0000),  # Memory read 3 (page 8) - no more data
     ]
 
     mock_interface.read_data.side_effect = [
         (0, [0x00, 0x00]),  # ATQA (4-byte UID)
         (0, [0x01, 0x02, 0x03, 0x04, 0x04]),  # UID + BCC (4-byte)
-        (0, [0x08]),  # SAK
+        (0, [0x08]),  # SAK (bit 2 clear = complete)
         (0, [0xAA] * 16),  # Memory page 0
         (0, [0xBB] * 16),  # Memory page 4
     ]
@@ -250,17 +254,18 @@ def test_card_read_mifare_memory(mock_interface_class: Mock) -> None:
     # Mock UID retrieval (4-byte UID)
     mock_interface.read_register.side_effect = [
         (0, 0x0002),  # ATQA
-        (0, 0x0005),  # UID
+        (0, 0x0005),  # UID (anticollision)
+        (0, 0x0000),  # Check collision bit (no collision)
         (0, 0x0001),  # SAK
-        (0, 0x0010),  # Memory read
-        (0, 0x0000),  # No more data
+        (0, 0x0010),  # Memory read (page 0)
+        (0, 0x0000),  # Memory read (page 4) - no more data
     ]
 
     mock_interface.read_data.side_effect = [
         (0, [0x00, 0x00]),  # ATQA
         (0, [0x01, 0x02, 0x03, 0x04, 0x04]),  # 4-byte UID + BCC
-        (0, [0x08]),  # SAK
-        (0, [0xCC] * 16),  # Memory content
+        (0, [0x08]),  # SAK (bit 2 clear = complete)
+        (0, [0xCC] * 16),  # Memory content (page 0)
     ]
 
     reader = PN5180(tty)
