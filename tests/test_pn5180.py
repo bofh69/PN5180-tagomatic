@@ -181,7 +181,7 @@ def test_connect_iso14443a(mock_interface_class: Mock) -> None:
 
     reader = PN5180(tty)
     with reader.start_session(0x00, 0x80) as comm:
-        card = comm.connect_iso14443a()
+        card = comm.connect_one_iso14443a()
         assert card.uid == bytes([0x01, 0x02, 0x03, 0x04])
 
 
@@ -222,7 +222,7 @@ def test_card_read_memory(mock_interface_class: Mock) -> None:
 
     reader = PN5180(tty)
     with reader.start_session(0x00, 0x80) as comm:
-        card = comm.connect_iso14443a()
+        card = comm.connect_one_iso14443a()
         memory = card.read_memory()
         assert len(memory) == 32  # 2 pages * 16 bytes each
         assert memory[:16] == bytes([0xAA] * 16)
@@ -265,7 +265,7 @@ def test_card_read_mifare_memory(mock_interface_class: Mock) -> None:
 
     reader = PN5180(tty)
     with reader.start_session(0x00, 0x80) as comm:
-        card = comm.connect_iso14443a()
+        card = comm.connect_one_iso14443a()
         memory = card.read_mifare_memory()
         assert len(memory) == 16
         assert memory == bytes([0xCC] * 16)

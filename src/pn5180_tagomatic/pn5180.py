@@ -28,7 +28,7 @@ class PN5180:
         >>> with PN5180("/dev/ttyACM0") as reader:
         ...     # High-level API (recommended)
         ...     with reader.start_session(0x00, 0x80) as comm:
-        ...         card = comm.connect_iso14443a()
+        ...         card = comm.connect_one_iso14443a()
         ...         memory = card.read_memory()
         ...
         ...     # Low-level access if needed
@@ -63,7 +63,7 @@ class PN5180:
         Example:
             >>> reader = PN5180("/dev/ttyACM0")
             >>> with reader.start_session(0x00, 0x80) as comm:
-            ...     card = comm.connect_iso14443a()
+            ...     card = comm.connect_one_iso14443a()
             ...     uid = card.uid
             ...     memory = card.read_memory()
         """
