@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      version: ${{ steps.extract_version.outputs.version }}
     
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +30,54 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      
+      - name: Update version from tag
+        id: extract_version
+        if: github.event_name == 'release'
+        env:
+          VERSION_TAG: ${{ github.ref_name }}
+        run: |
+          # Extract version from tag (remove 'v' prefix if present)
+          VERSION="${VERSION_TAG#v}"
+          
+          # Validate version is not empty and contains only valid characters
+          if [[ -z "$VERSION" ]]; then
+            echo "Error: Failed to extract version from tag"
+            exit 1
+          fi
+          
+          # Validate semver format: X.Y.Z or X.Y.Z-prerelease
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+([.-][a-zA-Z0-9]+)*)?$ ]]; then
+            echo "Error: Invalid version format: $VERSION"
+            echo "Version must match semver format (e.g., 1.2.3 or 1.2.3-alpha.1)"
+            exit 1
+          fi
+          
+          echo "Updating version to: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+          # Check that required files exist
+          if [[ ! -f pyproject.toml ]]; then
+            echo "Error: pyproject.toml not found"
+            exit 1
+          fi
+          
+          if [[ ! -f src/pn5180_tagomatic/__init__.py ]]; then
+            echo "Error: src/pn5180_tagomatic/__init__.py not found"
+            exit 1
+          fi
+          
+          # Update pyproject.toml
+          sed -i "s/^version = .*/version = \"$VERSION\"/" pyproject.toml
+          
+          # Update __init__.py
+          sed -i "s/^__version__ = .*/__version__ = \"$VERSION\"/" src/pn5180_tagomatic/__init__.py
+          
+          # Verify changes
+          echo "pyproject.toml version:"
+          grep "^version = " pyproject.toml
+          echo "__init__.py version:"
+          grep "^__version__ = " src/pn5180_tagomatic/__init__.py
       
       - name: Install build dependencies
         run: |
@@ -89,3 +139,72 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
+  
+  build-arduino:
+    name: Build Arduino Firmware
+    if: github.event_name == 'release'
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Arduino CLI
+        uses: arduino/setup-arduino-cli@v1
+      
+      - name: Install platform
+        run: |
+          arduino-cli config init
+          arduino-cli core update-index
+          arduino-cli core install arduino:mbed_rp2040
+      
+      - name: Install libraries
+        run: |
+          arduino-cli lib install simpleRPC
+          arduino-cli lib install FastLED
+      
+      - name: Compile sketch for Raspberry Pi Pico
+        run: |
+          arduino-cli compile -e --fqbn arduino:mbed_rp2040:pico sketch/pn5180_reader
+      
+      - name: Find and rename UF2 file
+        id: find_uf2
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          # Find all uf2 files
+          mapfile -t UF2_FILES < <(find sketch/pn5180_reader/build -name "*.uf2")
+          
+          if [[ ${#UF2_FILES[@]} -eq 0 ]]; then
+            echo "Error: No UF2 files found"
+            exit 1
+          fi
+          
+          if [[ ${#UF2_FILES[@]} -gt 1 ]]; then
+            echo "Warning: Multiple UF2 files found:"
+            printf '%s\n' "${UF2_FILES[@]}"
+            echo "Using the first one: ${UF2_FILES[0]}"
+          fi
+          
+          UF2_FILE="${UF2_FILES[0]}"
+          
+          # Create a descriptive filename using version from build job
+          NEW_NAME="pn5180_reader-${VERSION}-raspberry-pi-pico.uf2"
+          
+          # Copy to a known location with the new name
+          mkdir -p release
+          cp "$UF2_FILE" "release/$NEW_NAME"
+          
+          echo "uf2_file=release/$NEW_NAME" >> $GITHUB_OUTPUT
+          echo "uf2_name=$NEW_NAME" >> $GITHUB_OUTPUT
+          
+          echo "Created release file:"
+          ls -lh "release/$NEW_NAME"
+      
+      - name: Upload UF2 to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.find_uf2.outputs.uf2_file }}
+          fail_on_unmatched_files: true
