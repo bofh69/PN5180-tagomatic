@@ -53,6 +53,16 @@ Issues = "https://github.com/bofh69/PN5180-tagomatic/issues"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+pn5180_tagomatic = [
+    "sketch/README.md",
+    "sketch/*.jpg",
+    "sketch/pn5180_reader/*.ino",
+]
+
 [tool.black]
 line-length = 88
 target-version = ['py38']

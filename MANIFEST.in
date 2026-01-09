@@ -4,7 +4,6 @@
 include README.md
 include LICENSE
 include pyproject.toml
-recursive-include src *.py
-recursive-include sketch *.ino *.md *.jpg
+recursive-include src *.py *.ino *.md *.jpg *.typed
 recursive-include LICENSES *.txt
 include .reuse/dep5

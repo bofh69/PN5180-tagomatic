@@ -51,7 +51,7 @@ pip install -e .
 
 ### Firmware
 
-See [sketch/README.md](sketch/README.md) for instructions on building and uploading the Raspberry Pi Pico firmware.
+See [src/pn5180_tagomatic/sketch/README.md](src/pn5180_tagomatic/sketch/README.md) for instructions on building and uploading the Raspberry Pi Pico firmware.
 
 ## Usage
 

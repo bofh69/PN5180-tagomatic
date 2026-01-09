@@ -93,10 +93,14 @@ arduino-cli lib install FastLED
 arduino-cli lib install simpleRPC
 
 # Compile
-arduino-cli compile -e --fqbn arduino:mbed_rp2040:pico sketch/pn5180_reader
+# If you cloned the repository:
+arduino-cli compile -e --fqbn arduino:mbed_rp2040:pico src/pn5180_tagomatic/sketch/pn5180_reader
+# If you installed via pip, navigate to the sketch directory first:
+# cd $(python -c "import pn5180_tagomatic; import os; print(os.path.join(os.path.dirname(pn5180_tagomatic.__file__), 'sketch'))")
 
 # Upload (replace /dev/ttyACM0 with your port)
-arduino-cli upload -p /dev/ttyACM0 --fqbn arduino:mbed_rp2040:pico sketch/pn5180_reader
+# If you cloned the repository:
+arduino-cli upload -p /dev/ttyACM0 --fqbn arduino:mbed_rp2040:pico src/pn5180_tagomatic/sketch/pn5180_reader
 # (or copy the uf2 file to the bootloader's drive)
 ```
 
