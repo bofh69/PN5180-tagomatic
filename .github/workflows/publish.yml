@@ -67,45 +67,11 @@ jobs:
             exit 1
           fi
           
-          # Export VERSION for Python to use safely via environment
-          export VERSION
-          
-          # Update files using Python to avoid injection issues
-          python3 << 'EOF'
-          import re
-          import os
-          import sys
-          
-          # Get version from environment variable (safe from shell injection)
-          version = os.environ.get('VERSION')
-          if not version:
-              print("Error: VERSION environment variable not set")
-              sys.exit(1)
-          
           # Update pyproject.toml
-          with open('pyproject.toml', 'r') as f:
-              content = f.read()
-          new_content = re.sub(
-              r'^version\s*=\s*[^\n]*',
-              f'version = "{version}"',
-              content,
-              flags=re.MULTILINE
-          )
-          with open('pyproject.toml', 'w') as f:
-              f.write(new_content)
+          sed -i "s/^version = .*/version = \"$VERSION\"/" pyproject.toml
           
           # Update __init__.py
-          with open('src/pn5180_tagomatic/__init__.py', 'r') as f:
-              content = f.read()
-          new_content = re.sub(
-              r'^__version__\s*=\s*[^\n]*',
-              f'__version__ = "{version}"',
-              content,
-              flags=re.MULTILINE
-          )
-          with open('src/pn5180_tagomatic/__init__.py', 'w') as f:
-              f.write(new_content)
-          EOF
+          sed -i "s/^__version__ = .*/__version__ = \"$VERSION\"/" src/pn5180_tagomatic/__init__.py
           
           # Verify changes
           echo "pyproject.toml version:"
