@@ -67,4 +67,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sketch-${{ matrix.board.name }}
-          path: sketch/pn5180_reader/build/*/*.u2f
+          path: sketch/pn5180_reader/build/*/*.uf2
