@@ -29,6 +29,26 @@ jobs:
         with:
           python-version: '3.11'
       
+      - name: Update version from tag
+        if: github.event_name == 'release'
+        run: |
+          # Extract version from tag (remove 'v' prefix if present)
+          VERSION="${GITHUB_REF#refs/tags/}"
+          VERSION="${VERSION#v}"
+          echo "Updating version to: $VERSION"
+          
+          # Update pyproject.toml
+          sed -i "s/^version = .*/version = \"$VERSION\"/" pyproject.toml
+          
+          # Update __init__.py
+          sed -i "s/^__version__ = .*/__version__ = \"$VERSION\"/" src/pn5180_tagomatic/__init__.py
+          
+          # Verify changes
+          echo "pyproject.toml version:"
+          grep "^version = " pyproject.toml
+          echo "__init__.py version:"
+          grep "^__version__ = " src/pn5180_tagomatic/__init__.py
+      
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
