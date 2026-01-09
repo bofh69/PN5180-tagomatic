@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      version: ${{ steps.extract_version.outputs.version }}
     
     steps:
       - uses: actions/checkout@v4
@@ -30,6 +32,7 @@ jobs:
           python-version: '3.11'
       
       - name: Update version from tag
+        id: extract_version
         if: github.event_name == 'release'
         env:
           VERSION_TAG: ${{ github.ref_name }}
@@ -51,6 +54,7 @@ jobs:
           fi
           
           echo "Updating version to: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
           
           # Check that required files exist
           if [[ ! -f pyproject.toml ]]; then
@@ -173,6 +177,7 @@ jobs:
   build-arduino:
     name: Build Arduino Firmware
     if: github.event_name == 'release'
+    needs: [build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -200,18 +205,26 @@ jobs:
       
       - name: Find and rename UF2 file
         id: find_uf2
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
-          # Find the uf2 file
-          UF2_FILE=$(find sketch/pn5180_reader/build -name "*.uf2" | head -1)
-          if [[ -z "$UF2_FILE" ]]; then
-            echo "Error: UF2 file not found"
+          # Find all uf2 files
+          mapfile -t UF2_FILES < <(find sketch/pn5180_reader/build -name "*.uf2")
+          
+          if [[ ${#UF2_FILES[@]} -eq 0 ]]; then
+            echo "Error: No UF2 files found"
             exit 1
           fi
           
-          # Extract version from tag
-          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ ${#UF2_FILES[@]} -gt 1 ]]; then
+            echo "Warning: Multiple UF2 files found:"
+            printf '%s\n' "${UF2_FILES[@]}"
+            echo "Using the first one: ${UF2_FILES[0]}"
+          fi
           
-          # Create a descriptive filename
+          UF2_FILE="${UF2_FILES[0]}"
+          
+          # Create a descriptive filename using version from build job
           NEW_NAME="pn5180_reader-${VERSION}-raspberry-pi-pico.uf2"
           
           # Copy to a known location with the new name
@@ -221,6 +234,7 @@ jobs:
           echo "uf2_file=release/$NEW_NAME" >> $GITHUB_OUTPUT
           echo "uf2_name=$NEW_NAME" >> $GITHUB_OUTPUT
           
+          echo "Created release file:"
           ls -lh "release/$NEW_NAME"
       
       - name: Upload UF2 to Release
