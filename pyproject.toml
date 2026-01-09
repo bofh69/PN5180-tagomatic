@@ -60,7 +60,6 @@ include-package-data = true
 pn5180_tagomatic = [
     "sketch/README.md",
     "sketch/*.jpg",
-    "sketch/pn5180_reader/*.ino",
 ]
 
 [tool.black]
