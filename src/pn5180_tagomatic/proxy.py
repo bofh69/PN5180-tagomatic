@@ -567,11 +567,11 @@ class PN5180Helper(PN5180Proxy):
         self.write_register_and_mask(Registers.CRC_TX_CONFIG, 0xFFFFFFFE)
 
     def turn_off_crc(self) -> None:
-        """Turn off CRC for TX and RX.
+        """Turn off CRC for TX and RX. Sets RX_BIT_ALIGN to 0
 
         Disables CRC calculation and verification for transmission and reception.
         """
-        self.turn_off_rx_crc()
+        self.set_rx_crc_and_first_bit(False, 0)
         self.turn_off_tx_crc()
 
     def turn_on_rx_crc(self) -> None:
@@ -590,12 +590,25 @@ class PN5180Helper(PN5180Proxy):
         # Turn on CRC for TX
         self.write_register_or_mask(Registers.CRC_TX_CONFIG, 0x00000001)
 
+    def set_rx_crc_and_first_bit(self, on: bool, bit_start: int = 0) -> None:
+        """Set RX_CRC_ENABLE and RX_BIT_ALIGN fields
+
+        Enables/disables CRC verification for reception,
+        sets the RX_BIT_ALIGN field as needed for the first
+        received bits.
+        """
+        self.write_register_and_mask(Registers.CRC_RX_CONFIG, 0xFFFFFE3E)
+        flags = bit_start << 6
+        if on:
+            flags |= 1
+        self.write_register_or_mask(Registers.CRC_RX_CONFIG, flags)
+
     def turn_on_crc(self) -> None:
-        """Turn on CRC for TX and RX.
+        """Turn on CRC for TX and RX. Sets RX_BIT_ALIGN to 0
 
         Enables CRC calculation and verification for transmission and reception.
         """
-        self.turn_on_rx_crc()
+        self.set_rx_crc_and_first_bit(True, 0)
         self.turn_on_tx_crc()
 
     def change_mode_to_transceiver(self) -> None:
