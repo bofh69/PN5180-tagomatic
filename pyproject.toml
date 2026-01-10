@@ -11,11 +11,16 @@ version = "0.1.0"
 description = "USB based RFID reader with Python interface"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "GPL-3.0-or-later"}
-authors = [
-    {name = "PN5180-tagomatic contributors"}
+license = "GPL-3.0-or-later"
+license-files = [
+  "LICENSE",
+  "LICENSES/*",
+  "REUSE.toml",
 ]
-keywords = ["rfid", "pn5180", "usb", "reader", "raspberry-pi-pico"]
+authors = [
+    {name = "Sebastian Andersson"}
+]
+keywords = ["rfid", "pn5180", "reader"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
