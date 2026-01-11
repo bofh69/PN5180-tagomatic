@@ -53,31 +53,14 @@ jobs:
             exit 1
           fi
           
-          echo "Updating version to: $VERSION"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          
-          # Check that required files exist
-          if [[ ! -f pyproject.toml ]]; then
-            echo "Error: pyproject.toml not found"
-            exit 1
-          fi
-          
-          if [[ ! -f src/pn5180_tagomatic/__init__.py ]]; then
-            echo "Error: src/pn5180_tagomatic/__init__.py not found"
-            exit 1
-          fi
-          
-          # Update pyproject.toml
-          sed -i "s/^version = .*/version = \"$VERSION\"/" pyproject.toml
-          
-          # Update __init__.py
-          sed -i "s/^__version__ = .*/__version__ = \"$VERSION\"/" src/pn5180_tagomatic/__init__.py
-          
-          # Verify changes
           echo "pyproject.toml version:"
           grep "^version = " pyproject.toml
           echo "__init__.py version:"
           grep "^__version__ = " src/pn5180_tagomatic/__init__.py
+
+          # Updating links.
+          BASE_URL="https://github.com/bofh69/PN5180-tagomatic/tree/$VERSION"
+          sed -i "s#](\\([^h#]\\)#$BASE_URL/\\1#" README.md
       
       - name: Install build dependencies
         run: |
