@@ -11,11 +11,16 @@ version = "0.1.0"
 description = "USB based RFID reader with Python interface"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "GPL-3.0-or-later"}
-authors = [
-    {name = "PN5180-tagomatic contributors"}
+license = "GPL-3.0-or-later"
+license-files = [
+  "LICENSE",
+  "LICENSES/*",
+  "REUSE.toml",
 ]
-keywords = ["rfid", "pn5180", "usb", "reader", "raspberry-pi-pico"]
+authors = [
+    {name = "Sebastian Andersson"}
+]
+keywords = ["rfid", "pn5180", "reader"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -37,11 +42,12 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "black>=23.0.0",
+    "bumpver>=2025.1131",
+    "mypy>=1.0.0",
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "ruff>=0.1.0",
-    "mypy>=1.0.0",
-    "black>=23.0.0",
     "types-pyserial>=3.5.0",
 ]
 
@@ -101,4 +107,24 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
+]
+
+[tool.bumpver]
+current_version = "0.1.0"
+version_pattern = "MAJOR.MINOR.PATCH[-PYTAGNUM]"
+commit_message = "bump version {old_version} -> {new_version}"
+tag_message = "{new_version}"
+tag_scope = "default"
+pre_commit_hook = ""
+post_commit_hook = ""
+commit = true
+tag = true
+push = false
+
+[tool.bumpver.file_patterns]
+"pyproject.toml" = [
+    'current_version = "{pep440_version}"',
+]
+"src/pn5180_tagomatic/__init__.py" = [
+    '__version__ = "{pep440_version}"',
 ]
