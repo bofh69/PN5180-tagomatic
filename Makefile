@@ -8,6 +8,7 @@ PYTEST := $(VENV)/bin/pytest
 RUFF := $(VENV)/bin/ruff
 BLACK := $(VENV)/bin/black
 MYPY := $(VENV)/bin/mypy
+MKDOCS := $(VENV)/bin/mkdocs
 
 .PHONY: help
 help:
@@ -19,6 +20,8 @@ help:
 	@echo "  make lint         - Run linting checks"
 	@echo "  make format       - Format code with black"
 	@echo "  make type-check   - Run type checking with mypy"
+	@echo "  make docs-serve   - Serve documentation locally"
+	@echo "  make docs-build   - Build documentation"
 	@echo "  make clean        - Remove virtual environment and build artifacts"
 
 $(VENV)/bin/activate:
@@ -41,6 +44,10 @@ $(VENV)/.timestamp-dev: $(VENV)/bin/activate pyproject.toml
 	$(PIP) install -e ".[dev]"
 	touch $@
 
+$(VENV)/.timestamp-docs: $(VENV)/bin/activate pyproject.toml
+	$(PIP) install -e ".[docs]"
+	touch $@
+
 .PHONY: install-dev
 install-dev: $(VENV)/.timestamp-dev
 
@@ -61,6 +68,14 @@ format: install-dev
 type-check: install-dev
 	$(MYPY) src/
 
+.PHONY: docs-serve
+docs-serve: $(VENV)/.timestamp-docs
+	$(MKDOCS) serve
+
+.PHONY: docs-build
+docs-build: $(VENV)/.timestamp-docs
+	$(MKDOCS) build
+
 .PHONY: clean
 clean:
 	rm -rf $(VENV)
@@ -72,5 +87,6 @@ clean:
 	rm -rf .mypy_cache
 	rm -rf htmlcov/
 	rm -rf .coverage
+	rm -rf site/
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete

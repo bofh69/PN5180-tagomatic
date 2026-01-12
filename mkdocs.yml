@@ -1,0 +1,84 @@
+# SPDX-FileCopyrightText: 2026 PN5180-tagomatic contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+site_name: PN5180-tagomatic Documentation
+site_description: USB based RFID reader with Python interface
+site_author: Sebastian Andersson
+site_url: https://github.com/bofh69/PN5180-tagomatic
+
+repo_name: bofh69/PN5180-tagomatic
+repo_url: https://github.com/bofh69/PN5180-tagomatic
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Usage: getting-started/usage.md
+  - API Reference:
+      - Overview: api/index.md
+      - PN5180: api/pn5180.md
+      - Session: api/session.md
+      - ISO 14443-A: api/iso14443a.md
+      - ISO 15693: api/iso15693.md
+      - Proxy: api/proxy.md
+      - Constants: api/constants.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_root_toc_entry: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            members_order: source
+            group_by_category: true
+            show_category_heading: true
+            show_if_no_docstring: false
+            inherited_members: false
+            filters:
+              - "!^_"  # Exclude private members
+            
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
