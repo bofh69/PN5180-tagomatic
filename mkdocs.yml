@@ -69,7 +69,7 @@ plugins:
             inherited_members: false
             filters:
               - "!^_"  # Exclude private members
-            
+
 markdown_extensions:
   - admonition
   - pymdownx.details
