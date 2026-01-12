@@ -48,8 +48,8 @@ class PN5180RFSession:
         if not self._active:
             raise RuntimeError("Communication session is no longer active")
 
-        uid = self._get_one_iso14443a_uid()
-        return ISO14443ACard(self._reader, uid)
+        (uid, sak) = self._get_one_iso14443a_uid()
+        return ISO14443ACard(self._reader, uid, sak)
 
     def connect_iso14443a(self, uid: bytes) -> ISO14443ACard | None:
         # Activate card first.
@@ -87,7 +87,7 @@ class PN5180RFSession:
                 if len(sak) == 0:
                     return None
 
-        return ISO14443ACard(self._reader, uid)
+        return ISO14443ACard(self._reader, uid, sak)
 
     @staticmethod
     def _is_valid_bcc(data: bytes) -> bool:
@@ -117,25 +117,25 @@ class PN5180RFSession:
             return ISO14443ACommand.ANTICOLLISION_CL3
         raise ValueError("level argument is out of range")
 
-    def _get_one_iso14443a_uid(self) -> bytes:
+    def _get_one_iso14443a_uid(self) -> tuple[bytes, bytes]:
         """Get the UID of an ISO 14443-A card using anticollision protocol.
 
         Returns:
-            The card's UID as bytes.
+            The card's (UID as bytes, SAK as bytes).
 
         Raises:
             PN5180Error: If communication with the card fails.
             ValueError: If the card's response is invalid.
             TimeoutError: If no card responds.
         """
-        uids = self.get_all_iso14443a_uids(
+        card_ids = self.get_all_iso14443a_uids(
             wake_up_first=True,
             halt_when_found=False,
             max_cards=1,
         )
-        if len(uids) == 0:
-            return b""
-        return uids[0]
+        if len(card_ids) == 0:
+            return (b"", b"")
+        return card_ids[0]
 
     @staticmethod
     def _get_nvb_and_final_bits(
@@ -166,7 +166,7 @@ class PN5180RFSession:
         wake_up_first: bool = True,
         halt_when_found: bool = True,
         max_cards: int = 32,
-    ) -> list[bytes]:
+    ) -> list[tuple[bytes, bytes]]:
         """Get the UIDs of ISO 14443-A cards using anticollision protocol.
 
         Cards may be halted after discovery.
@@ -181,13 +181,13 @@ class PN5180RFSession:
             max_cards: The maximum number of cards that can be found.
 
         Returns:
-            A list of the card's UIDs as bytes.
+            A list of the card's (UIDs as bytes, SAK as bytes).
 
         Raises:
             PN5180Error: If communication with the card fails.
             ValueError: If the card's response is invalid.
         """
-        uids: list[bytes] = []
+        card_ids: list[tuple[bytes, bytes]] = []
         discovery_stack: list[tuple[int, bytes, int, list[int], bool]] = [
             (0, b"", 0, [], True),
         ]
@@ -204,7 +204,7 @@ class PN5180RFSession:
                     atqa_data = self._reader.send_and_receive(7, bytes([cmd]))
                     if len(atqa_data) == 0:
                         # No longer any more cards in the field.
-                        return uids
+                        return card_ids
                     if len(uid) >= 3:
                         # This isn't tested, I don't have cards that
                         # collide in the second part only
@@ -288,13 +288,13 @@ class PN5180RFSession:
                 uid.append(new_mask[3])
                 if sak[0] & (1 << 2) == 0:
                     # All CL levels completed for this card
-                    uids.append(bytes(uid))
+                    card_ids.append((bytes(uid), sak))
                     if halt_when_found:
                         self._reader.send_data(
                             0, bytes([ISO14443ACommand.HLTA, 0x00])
                         )
-                    if len(uids) >= max_cards:
-                        return uids
+                    if len(card_ids) >= max_cards:
+                        return card_ids
                 else:
                     # Go to next CL
                     discovery_stack.append((cl + 1, b"", 0, uid, False))
@@ -317,7 +317,7 @@ class PN5180RFSession:
                 discovery_stack.append(
                     (cl, bytes(new_mask[:n_bytes]), final_bit, uid, False)
                 )
-        return uids
+        return card_ids
 
     def iso15693_inventory(
         self, slots: int = 16, mask_length: int = 0

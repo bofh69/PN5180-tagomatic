@@ -20,7 +20,7 @@ class ISO14443ACard:
     successfully connected via the ISO 14443-A anticollision protocol.
     """
 
-    def __init__(self, reader: PN5180Helper, uid: bytes) -> None:
+    def __init__(self, reader: PN5180Helper, uid: bytes, sak: bytes) -> None:
         """Initialize ISO14443ACard.
 
         Args:
@@ -29,11 +29,17 @@ class ISO14443ACard:
         """
         self._reader = reader
         self._uid = uid
+        self._sak = sak
 
     @property
     def uid(self) -> bytes:
         """Get the card's UID."""
         return self._uid
+
+    @property
+    def sak(self) -> bytes:
+        """Get the card's SAK response."""
+        return self._sak
 
     def read_memory(self, start_page: int = 0, num_pages: int = 255) -> bytes:
         """Read memory from a non-MIFARE Classic ISO 14443-A card.
