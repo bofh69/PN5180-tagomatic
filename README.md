@@ -107,6 +107,23 @@ make format
 make type-check
 ```
 
+### Documentation
+
+To build and view the documentation locally:
+
+```bash
+# Install documentation dependencies
+pip install -e .[docs]
+
+# Serve documentation locally (with live reload)
+make docs-serve
+
+# Build static documentation
+make docs-build
+```
+
+The documentation will be available at `http://127.0.0.1:8000` when using `make docs-serve`.
+
 ## License
 
 This project is licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later).
