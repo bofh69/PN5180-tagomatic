@@ -16,6 +16,10 @@ import argparse
 import sys
 
 from pn5180_tagomatic import PN5180
+from pn5180_tagomatic.constants import (
+    RxProtocol,
+    TxProtocol,
+)
 
 
 def main() -> int:
@@ -36,9 +40,10 @@ def main() -> int:
             print("PN5180 reader initialized")
 
             # Start ISO 15693 communication session
-            # 0x0D = TX config for ISO 15693
-            # 0x8D = RX config for ISO 15693
-            with reader.start_session(0x0D, 0x8D) as session:
+            with reader.start_session(
+                TxProtocol.ISO_15693_ASK100_26,
+                RxProtocol.ISO_15693_26,
+            ) as session:
                 print("Performing ISO 15693 inventory...")
 
                 # Perform inventory
@@ -51,7 +56,7 @@ def main() -> int:
                         print(f"  {i}. UID: {uid.hex(':')}")
 
                     card = session.connect_iso15693(uids[0])
-                    card.write_memory(4, b' Hello! ')
+                    card.write_memory(4, b" Hello! ")
 
                     memory = card.read_memory()
                     for offset in range(0, len(memory), 16):
@@ -60,7 +65,9 @@ def main() -> int:
                             chr(byte) if 32 <= byte <= 126 else "."
                             for byte in chunk
                         )
-                        print(f"({offset:03x}): {chunk.hex(' ')} {ascii_values}")
+                        print(
+                            f"({offset:03x}): {chunk.hex(' ')} {ascii_values}"
+                        )
                 else:
                     print("\nNo tags found")
 

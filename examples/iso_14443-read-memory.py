@@ -35,7 +35,9 @@ def main() -> int:
             print("PN5180 reader initialized")
 
             # Start communication with ISO 14443-A configuration
-            with reader.start_session(0x00, 0x80) as session:
+            with reader.start_session(
+                TxProtocol.ISO_14443_A_106, RxProtocol.ISO_14443_A_106
+            ) as session:
                 # Connect to a card
                 try:
                     card = session.connect_one_iso14443a()

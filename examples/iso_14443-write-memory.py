@@ -13,6 +13,10 @@ import argparse
 import sys
 
 from pn5180_tagomatic import PN5180
+from pn5180_tagomatic.constants import (
+    RxProtocol,
+    TxProtocol,
+)
 
 
 def main() -> int:
@@ -33,7 +37,9 @@ def main() -> int:
             print("PN5180 reader initialized")
 
             # Start communication with ISO 14443-A configuration
-            with reader.start_session(0x00, 0x80) as session:
+            with reader.start_session(
+                TxProtocol.ISO_14443_A_106, RxProtocol.ISO_14443_A_106
+            ) as session:
                 # Connect to a card
                 try:
                     card = session.connect_one_iso14443a()
@@ -51,8 +57,8 @@ def main() -> int:
                     raise NotImplementedError("Not yet implemented")
                 else:
                     # Other ISO 14443-A card (e.g., NTAG)
-                    card.write_memory(16//4, 0xEFBEADDE)
-                    memory = card.read_memory(16//4, 1)
+                    card.write_memory(16 // 4, 0xEFBEADDE)
+                    memory = card.read_memory(16 // 4, 1)
                     memory = memory[:4]
                     # Display memory content
                     ascii_values = "".join(

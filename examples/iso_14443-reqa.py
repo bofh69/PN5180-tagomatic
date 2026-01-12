@@ -16,6 +16,10 @@ import argparse
 import sys
 
 from pn5180_tagomatic import PN5180, Registers
+from pn5180_tagomatic.constants import (
+    RxProtocol,
+    TxProtocol,
+)
 
 
 def main() -> int:
@@ -37,18 +41,24 @@ def main() -> int:
 
             # Line 1:
             # ISO 14443-A 106
-            reader.ll.load_rf_config(0x00, 0x80)
+            reader.ll.load_rf_config(
+                TxProtocol.ISO_14443_A_106, RxProtocol.ISO_14443_A_106
+            )
 
             # Line 2:
             reader.ll.rf_on()
 
             # Line 3:
             # Turn off CRC for TX
-            reader.ll.write_register_and_mask(Registers.CRC_TX_CONFIG, 0xFFFFFFFE)
+            reader.ll.write_register_and_mask(
+                Registers.CRC_TX_CONFIG, 0xFFFFFFFE
+            )
 
             # Line 4:
             # Turn off CRC for RX
-            reader.ll.write_register_and_mask(Registers.CRC_RX_CONFIG, 0xFFFFFFFE)
+            reader.ll.write_register_and_mask(
+                Registers.CRC_RX_CONFIG, 0xFFFFFFFE
+            )
 
             # Line 5:
             # Clear all IRQs
@@ -59,11 +69,15 @@ def main() -> int:
 
             # Line 6:
             # Set Idle state
-            reader.ll.write_register_and_mask(Registers.SYSTEM_CONFIG, 0xFFFFFFF8)
+            reader.ll.write_register_and_mask(
+                Registers.SYSTEM_CONFIG, 0xFFFFFFF8
+            )
 
             # Line 7:
             # Initiates Transceiver state
-            reader.ll.write_register_or_mask(Registers.SYSTEM_CONFIG, 0x00000003)
+            reader.ll.write_register_or_mask(
+                Registers.SYSTEM_CONFIG, 0x00000003
+            )
 
             # Line 8:
             # Send 0x26 (REQA command)

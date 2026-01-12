@@ -7,6 +7,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from .constants import (
+    RxProtocol,
+    TxProtocol,
+)
 from .proxy import PN5180Helper
 from .session import PN5180RFSession
 
@@ -43,7 +47,9 @@ class PN5180:
         """
         self.ll = PN5180Helper(tty)
 
-    def start_session(self, tx_config: int, rx_config: int) -> PN5180RFSession:
+    def start_session(
+        self, tx_config: TxProtocol, rx_config: RxProtocol
+    ) -> PN5180RFSession:
         """Start an RF communication session.
 
         This method loads the RF configuration and turns on the RF field,

@@ -12,8 +12,10 @@ from .constants import (
     PN5180Error,
     RegisterOperation,
     Registers,
+    RxProtocol,
     SwitchMode,
     TimeslotBehavior,
+    TxProtocol,
 )
 from .iso14443a import ISO14443ACard
 from .iso15693 import ISO15693Card

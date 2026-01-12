@@ -21,8 +21,10 @@ from .constants import (
     PN5180Error,
     RegisterOperation,
     Registers,
+    RxProtocol,
     SwitchMode,
     TimeslotBehavior,
+    TxProtocol,
 )
 
 MAX_TIMEOUT = 200  # Maximum time to wait for response
@@ -454,7 +456,9 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
             raise PN5180Error("epc_retrieve_inventory_result_size", result)
         return result
 
-    def load_rf_config(self, tx_config: int, rx_config: int) -> None:
+    def load_rf_config(
+        self, tx_config: TxProtocol, rx_config: RxProtocol
+    ) -> None:
         """Load RF config settings for RX/TX.
 
         Args:
