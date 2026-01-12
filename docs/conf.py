@@ -18,7 +18,6 @@ release = "0.1.0"
 # General configuration
 extensions = [
     "sphinx.ext.autodoc",
-    "sphinx.ext.autodoc.typehints",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
@@ -34,8 +33,8 @@ autodoc_default_options = {
     "exclude-members": "__weakref__",
 }
 
-autodoc_typehints = "description"
-autodoc_typehints_description_target = "documented"
+# Typehints settings for sphinx_autodoc_typehints extension
+typehints_description_target = "documented"
 
 # Napoleon settings for Google/NumPy style docstrings
 napoleon_google_docstring = True
