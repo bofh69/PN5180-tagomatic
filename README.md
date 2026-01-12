@@ -107,6 +107,18 @@ make format
 make type-check
 ```
 
+### Building documentation
+
+```bash
+# Install documentation dependencies
+pip install -e .[docs]
+
+# Build HTML documentation
+make docs
+```
+
+The generated documentation will be available in `docs/_build/html/index.html`.
+
 ## License
 
 This project is licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later).

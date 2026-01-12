@@ -1,0 +1,10 @@
+.. SPDX-FileCopyrightText: 2026 PN5180-tagomatic contributors
+.. SPDX-License-Identifier: GPL-3.0-or-later
+
+iso14443a module
+================
+
+.. automodule:: pn5180_tagomatic.iso14443a
+   :members:
+   :undoc-members:
+   :show-inheritance:

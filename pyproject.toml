@@ -51,6 +51,12 @@ dev = [
     "types-pyserial>=3.5.0",
 ]
 
+docs = [
+    "sphinx>=7.0.0",
+    "sphinx-rtd-theme>=2.0.0",
+    "sphinx-autodoc-typehints>=1.25.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/bofh69/PN5180-tagomatic"
 Repository = "https://github.com/bofh69/PN5180-tagomatic"

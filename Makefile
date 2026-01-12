@@ -8,6 +8,7 @@ PYTEST := $(VENV)/bin/pytest
 RUFF := $(VENV)/bin/ruff
 BLACK := $(VENV)/bin/black
 MYPY := $(VENV)/bin/mypy
+SPHINX_BUILD := $(VENV)/bin/sphinx-build
 
 .PHONY: help
 help:
@@ -19,6 +20,7 @@ help:
 	@echo "  make lint         - Run linting checks"
 	@echo "  make format       - Format code with black"
 	@echo "  make type-check   - Run type checking with mypy"
+	@echo "  make docs         - Build HTML documentation"
 	@echo "  make clean        - Remove virtual environment and build artifacts"
 
 $(VENV)/bin/activate:
@@ -44,6 +46,14 @@ $(VENV)/.timestamp-dev: $(VENV)/bin/activate pyproject.toml
 .PHONY: install-dev
 install-dev: $(VENV)/.timestamp-dev
 
+# Install package with documentation dependencies
+$(VENV)/.timestamp-docs: $(VENV)/bin/activate pyproject.toml
+	$(PIP) install -e ".[docs]"
+	touch $@
+
+.PHONY: install-docs
+install-docs: $(VENV)/.timestamp-docs
+
 .PHONY: test
 test: install-dev
 	$(PYTEST)
@@ -61,6 +71,11 @@ format: install-dev
 type-check: install-dev
 	$(MYPY) src/
 
+.PHONY: docs
+docs: install-docs
+	$(SPHINX_BUILD) -b html docs docs/_build/html
+	@echo "Documentation built. Open docs/_build/html/index.html to view."
+
 .PHONY: clean
 clean:
 	rm -rf $(VENV)
@@ -72,5 +87,6 @@ clean:
 	rm -rf .mypy_cache
 	rm -rf htmlcov/
 	rm -rf .coverage
+	rm -rf docs/_build/
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete
