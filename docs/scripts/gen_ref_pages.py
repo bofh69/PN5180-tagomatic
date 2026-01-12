@@ -100,4 +100,3 @@ The package is organized into focused modules:
 # Write the updated API index
 with mkdocs_gen_files.open("api/index.md", "w") as fd:
     fd.write(api_index_content)
-
