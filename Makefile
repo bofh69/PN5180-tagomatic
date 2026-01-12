@@ -54,7 +54,7 @@ lint: install-dev
 
 .PHONY: format
 format: install-dev
-	$(BLACK) -l79 src/ tests/
+	$(BLACK) -l79 examples/ src/ tests/
 	clang-format-15 -i sketch/*/*.ino
 
 .PHONY: type-check
