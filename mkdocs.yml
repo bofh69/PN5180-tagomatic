@@ -40,17 +40,13 @@ nav:
   - Getting Started:
       - Installation: getting-started/installation.md
       - Usage: getting-started/usage.md
-  - API Reference:
-      - Overview: api/index.md
-      - PN5180: api/pn5180.md
-      - Session: api/session.md
-      - ISO 14443-A: api/iso14443a.md
-      - ISO 15693: api/iso15693.md
-      - Proxy: api/proxy.md
-      - Constants: api/constants.md
+  - API Reference: api/index.md
 
 plugins:
   - search
+  - gen-files:
+      scripts:
+        - docs/scripts/gen_ref_pages.py
   - mkdocstrings:
       handlers:
         python:
