@@ -41,7 +41,7 @@ def main() -> int:
 
         return 0
 
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         return 1
 

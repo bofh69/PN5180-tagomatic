@@ -45,7 +45,7 @@ def main() -> int:
                 # Connect to a card
                 try:
                     card = session.connect_one_iso14443a()
-                    print(f"UID: {card.uid.hex(':')}")
+                    print(card.id)
                 except TimeoutError as e:
                     print(f"Error: {e}")
                     return 1

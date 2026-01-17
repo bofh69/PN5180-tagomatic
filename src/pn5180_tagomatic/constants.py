@@ -46,17 +46,21 @@ class ISO15693Error(Exception):
 class MemoryWriteError(Exception):
     """Exception raised when memory_write returns an error response from card."""
 
-    def __init__(self, error_code: int, response_data: bytes) -> None:
+    def __init__(
+        self, offset: int, error_code: int, response_data: bytes
+    ) -> None:
         """Initialize MemoryWriteError.
 
         Args:
+            offset: The offset that was written to.
             error_code: The error code from the tag's error response.
             response_data: The full error response data from the tag.
         """
+        self.offset = offset
         self.error_code = error_code
         self.response_data = response_data
         super().__init__(
-            f"MemoryWrite command failed "
+            f"MemoryWrite command failed at offset {offset} "
             f"with error code 0x{error_code:02X}"
         )
 
