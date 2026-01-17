@@ -185,12 +185,12 @@ def test_connect_iso14443a(mock_interface_class: Mock) -> None:
     reader = PN5180(tty)
     with reader.start_session(0x00, 0x80) as comm:
         card = comm.connect_one_iso14443a()
-        assert card.uid == bytes([0x01, 0x02, 0x03, 0x04])
+        assert card.id.uid_as_bytes() == bytes([0x01, 0x02, 0x03, 0x04])
 
 
 @patch("pn5180_tagomatic.proxy.Interface")
 def test_card_read_memory(mock_interface_class: Mock) -> None:
-    """Test reading memory from non-MIFARE card."""
+    """Test reading memory from MIFARE Classic card using default keys."""
     tty = "/dev/ttyACM0"
     mock_interface = MagicMock()
     mock_interface_class.return_value = mock_interface
@@ -204,8 +204,9 @@ def test_card_read_memory(mock_interface_class: Mock) -> None:
     mock_interface.write_register.return_value = 0
     mock_interface.send_data.return_value = 0
     mock_interface.wait_for_irq.return_value = True
+    mock_interface.mifare_authenticate.return_value = 0  # Success
 
-    # Mock UID retrieval (4-byte UID for simplicity)
+    # Mock UID retrieval (4-byte UID for MIFARE Classic)
     mock_interface.read_register.side_effect = [
         (0, 0x0002),  # ATQA
         (0, 0x0005),  # UID (anticollision)
@@ -219,7 +220,7 @@ def test_card_read_memory(mock_interface_class: Mock) -> None:
     mock_interface.read_data.side_effect = [
         (0, [0x00, 0x00]),  # ATQA (4-byte UID)
         (0, [0x01, 0x02, 0x03, 0x04, 0x04]),  # UID + BCC (4-byte)
-        (0, [0x08]),  # SAK (bit 2 clear = complete)
+        (0, [0x08]),  # SAK (MIFARE Classic 1K)
         (0, [0xAA] * 16),  # Memory page 0
         (0, [0xBB] * 16),  # Memory page 4
     ]
@@ -271,7 +272,7 @@ def test_card_read_mifare_memory(mock_interface_class: Mock) -> None:
     reader = PN5180(tty)
     with reader.start_session(0x00, 0x80) as comm:
         card = comm.connect_one_iso14443a()
-        memory = card.read_mifare_memory()
+        memory = card.read_memory()
         assert len(memory) == 16
         assert memory == bytes([0xCC] * 16)
         mock_interface.mifare_authenticate.assert_called()

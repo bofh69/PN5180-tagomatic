@@ -15,11 +15,7 @@ Usage:
 import argparse
 import sys
 
-from pn5180_tagomatic import PN5180, Registers
-from pn5180_tagomatic.constants import (
-    RxProtocol,
-    TxProtocol,
-)
+from pn5180_tagomatic import PN5180, Registers, RxProtocol, TxProtocol
 
 
 def main() -> int:
