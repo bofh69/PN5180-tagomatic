@@ -185,7 +185,7 @@ def test_connect_iso14443a(mock_interface_class: Mock) -> None:
     reader = PN5180(tty)
     with reader.start_session(0x00, 0x80) as comm:
         card = comm.connect_one_iso14443a()
-        assert card.uid == bytes([0x01, 0x02, 0x03, 0x04])
+        assert card.id.uid_as_bytes() == bytes([0x01, 0x02, 0x03, 0x04])
 
 
 @patch("pn5180_tagomatic.proxy.Interface")
@@ -271,7 +271,7 @@ def test_card_read_mifare_memory(mock_interface_class: Mock) -> None:
     reader = PN5180(tty)
     with reader.start_session(0x00, 0x80) as comm:
         card = comm.connect_one_iso14443a()
-        memory = card.read_mifare_memory()
+        memory = card.read_memory()
         assert len(memory) == 16
         assert memory == bytes([0xCC] * 16)
         mock_interface.mifare_authenticate.assert_called()

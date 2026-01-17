@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from .cards import Iso14443AUniqueId, Iso15693UniqueId
 from .constants import ISO14443ACommand, ISO15693Command, Registers
 from .iso14443a import ISO14443ACard
 from .iso15693 import ISO15693Card
@@ -48,11 +49,18 @@ class PN5180RFSession:
         if not self._active:
             raise RuntimeError("Communication session is no longer active")
 
-        (uid, sak) = self._get_one_iso14443a_uid()
-        return ISO14443ACard(self._reader, uid, sak)
+        card_id = self._get_one_iso14443a_card_id()
+        return ISO14443ACard(self._reader, card_id)
 
-    def connect_iso14443a(self, uid: bytes) -> ISO14443ACard | None:
+    def connect_iso14443a(
+        self, card_id: Iso14443AUniqueId
+    ) -> ISO14443ACard | None:
+        """
+        Select an ISO/IEC 14443A card and return an object representing it.
+        """
         # Activate card first.
+
+        # pylint: disable=too-many-return-statements
 
         self._reader.turn_off_crc()
         self._reader.change_mode_to_transceiver()
@@ -63,6 +71,7 @@ class PN5180RFSession:
 
         self._reader.turn_on_crc()
 
+        uid = card_id.uid_as_bytes()
         uid_list = list(uid)
         if len(uid) == 4:
             sak = self._send_select_for_cl(0, uid_list)
@@ -87,7 +96,7 @@ class PN5180RFSession:
                 if len(sak) == 0:
                     return None
 
-        return ISO14443ACard(self._reader, uid, sak)
+        return ISO14443ACard(self._reader, card_id)
 
     @staticmethod
     def _is_valid_bcc(data: bytes) -> bool:
@@ -117,7 +126,7 @@ class PN5180RFSession:
             return ISO14443ACommand.ANTICOLLISION_CL3
         raise ValueError("level argument is out of range")
 
-    def _get_one_iso14443a_uid(self) -> tuple[bytes, bytes]:
+    def _get_one_iso14443a_card_id(self) -> Iso14443AUniqueId:
         """Get the UID of an ISO 14443-A card using anticollision protocol.
 
         Returns:
@@ -134,7 +143,7 @@ class PN5180RFSession:
             max_cards=1,
         )
         if len(card_ids) == 0:
-            return (b"", b"")
+            raise TimeoutError("No card responded")
         return card_ids[0]
 
     @staticmethod
@@ -166,7 +175,7 @@ class PN5180RFSession:
         wake_up_first: bool = True,
         halt_when_found: bool = True,
         max_cards: int = 32,
-    ) -> list[tuple[bytes, bytes]]:
+    ) -> list[Iso14443AUniqueId]:
         """Get the UIDs of ISO 14443-A cards using anticollision protocol.
 
         Cards may be halted after discovery.
@@ -181,13 +190,16 @@ class PN5180RFSession:
             max_cards: The maximum number of cards that can be found.
 
         Returns:
-            A list of the card's (UIDs as bytes, SAK as bytes).
+            A list of the card's IDs.
 
         Raises:
             PN5180Error: If communication with the card fails.
             ValueError: If the card's response is invalid.
         """
-        card_ids: list[tuple[bytes, bytes]] = []
+        # pylint: disable=too-many-locals
+        # pylint: disable=too-many-statements
+        # pylint: disable=too-many-branches
+        card_ids: list[Iso14443AUniqueId] = []
         discovery_stack: list[tuple[int, bytes, int, list[int], bool]] = [
             (0, b"", 0, [], True),
         ]
@@ -288,7 +300,7 @@ class PN5180RFSession:
                 uid.append(new_mask[3])
                 if sak[0] & (1 << 2) == 0:
                     # All CL levels completed for this card
-                    card_ids.append((bytes(uid), sak))
+                    card_ids.append(Iso14443AUniqueId(bytes(uid), sak))
                     if halt_when_found:
                         self._reader.send_data(
                             0, bytes([ISO14443ACommand.HLTA, 0x00])
@@ -320,8 +332,11 @@ class PN5180RFSession:
         return card_ids
 
     def iso15693_inventory(
-        self, slots: int = 16, mask_length: int = 0
-    ) -> list[bytes]:
+        self,
+        slots: int = 16,
+        mask_length: int = 0,
+        afi: int | None = None,
+    ) -> list[Iso15693UniqueId]:
         """Perform ISO 15693 inventory to find tags.
 
         This method implements the ISO 15693 inventory protocol to discover
@@ -333,21 +348,24 @@ class PN5180RFSession:
             mask_length: Length of mask (default: 0).
 
         Returns:
-            List of UIDs found (bytes objects).
+            List of UniqueIds found.
 
         Raises:
             PN5180Error: If communication fails.
 
         Example:
             >>> with reader.start_session(0x0D, 0x8D) as session:
-            ...     uids = session.iso15693_inventory()
-            ...     for uid in uids:
-            ...         print(f"Found UID: {uid.hex(':')}")
+            ...     card_ids = session.iso15693_inventory()
+            ...     for card_id in card_ids:
+            ...         print(f"Found UID: {card_id.uid_to_string()}")
         """
         if not self._active:
             raise RuntimeError("Communication session is no longer active")
 
-        uids = []
+        if slots != 16:
+            raise NotImplementedError("Slots must currently be 16")
+
+        card_ids = []
 
         self._reader.turn_on_crc()
 
@@ -356,8 +374,12 @@ class PN5180RFSession:
 
         stored_tx_config = self._reader.read_register(Registers.TX_CONFIG)
 
+        # TODO Set flag according to slots
         self._reader.send_15693_request(
-            ISO15693Command.INVENTORY, bytes([mask_length]), is_inventory=True
+            ISO15693Command.INVENTORY,
+            bytes([mask_length]),
+            is_inventory=True,
+            afi=afi,
         )
 
         # Loop through all slots
@@ -373,7 +395,7 @@ class PN5180RFSession:
                         # UID is in bytes 10:1:-1 (reversed)
                         if len(data) >= 10:
                             uid = bytes(data[9:1:-1])
-                            uids.append(uid)
+                            card_ids.append(Iso15693UniqueId(uid))
 
             # Prepare for next slot
             # Clear bit 7, 8 and 11 - only send EOF for next command
@@ -389,13 +411,15 @@ class PN5180RFSession:
 
         self._reader.write_register(Registers.TX_CONFIG, stored_tx_config)
 
-        return uids
+        return card_ids
 
-    def connect_iso15693(self, uid: bytes) -> ISO15693Card:
+    def connect_iso15693(self, card_id: Iso15693UniqueId) -> ISO15693Card:
         """Connect to an ISO 15693 card.
 
         This method selects an ISO 15693 card and returns
         a card object.
+
+        Args: card_id: An unique identifier for the card.
 
         Returns:
             ISO15693Card object representing the connected card.
@@ -410,13 +434,12 @@ class PN5180RFSession:
 
         self._reader.turn_on_crc()
         self._reader.change_mode_to_transceiver()
+
         _answer = self._reader.send_and_receive_15693(
-            ISO15693Command.SELECT,
-            b"",
-            uid=uid,
+            ISO15693Command.SELECT, b"", uid=card_id
         )
 
-        return ISO15693Card(self._reader, uid)
+        return ISO15693Card(self._reader, card_id)
 
     def close(self) -> None:
         """Close the communication session and turn off RF field."""
