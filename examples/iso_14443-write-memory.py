@@ -13,6 +13,10 @@ import argparse
 import sys
 
 from pn5180_tagomatic import PN5180
+from pn5180_tagomatic.constants import (
+    RxProtocol,
+    TxProtocol,
+)
 
 
 def main() -> int:
@@ -33,11 +37,13 @@ def main() -> int:
             print("PN5180 reader initialized")
 
             # Start communication with ISO 14443-A configuration
-            with reader.start_session(0x00, 0x80) as session:
+            with reader.start_session(
+                TxProtocol.ISO_14443_A_106, RxProtocol.ISO_14443_A_106
+            ) as session:
                 # Connect to a card
                 try:
                     card = session.connect_one_iso14443a()
-                    print(f"UID: {card.uid.hex(':')}")
+                    print(card.id)
                 except TimeoutError as e:
                     print(f"Error: {e}")
                     return 1
@@ -46,20 +52,18 @@ def main() -> int:
                     return 1
 
                 # Write memory based on card type
-                if len(card.uid) == 4:
+                if len(card.id.uid_as_bytes()) == 4:
                     # MIFARE Classic card
                     raise NotImplementedError("Not yet implemented")
-                else:
-                    # Other ISO 14443-A card (e.g., NTAG)
-                    card.write_memory(16//4, 0xEFBEADDE)
-                    memory = card.read_memory(16//4, 1)
-                    memory = memory[:4]
-                    # Display memory content
-                    ascii_values = "".join(
-                        chr(byte) if 32 <= byte <= 126 else "."
-                        for byte in memory
-                    )
-                    print(f"{memory.hex(' ')} {ascii_values}")
+                # Other ISO 14443-A card (e.g., NTAG)
+                card.write_memory(16, bytes([0xDE, 0xAD, 0xBE, 0xEF]))
+                memory = card.read_memory(16, 4)
+                memory = memory[:4]
+                # Display memory content
+                ascii_values = "".join(
+                    chr(byte) if 32 <= byte <= 126 else "." for byte in memory
+                )
+                print(f"{memory.hex(' ')} {ascii_values}")
 
         return 0
 

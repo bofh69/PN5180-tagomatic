@@ -14,7 +14,7 @@ Usage:
 import argparse
 import sys
 
-from pn5180_tagomatic import PN5180
+from pn5180_tagomatic import PN5180, RxProtocol, TxProtocol
 
 
 def main() -> int:
@@ -35,11 +35,13 @@ def main() -> int:
             print("PN5180 reader initialized")
 
             # Start communication with ISO 14443-A configuration
-            with reader.start_session(0x00, 0x80) as session:
+            with reader.start_session(
+                TxProtocol.ISO_14443_A_106, RxProtocol.ISO_14443_A_106
+            ) as session:
                 # Connect to a card
                 try:
                     card = session.connect_one_iso14443a()
-                    print(f"UID: {card.uid.hex(':')}")
+                    print(card.id)
                 except TimeoutError as e:
                     print(f"Error: {e}")
                     return 1
@@ -47,13 +49,7 @@ def main() -> int:
                     print(f"Error: {e}")
                     return 1
 
-                # Read memory based on card type
-                if len(card.uid) == 4:
-                    # MIFARE Classic card
-                    memory = card.read_mifare_memory()
-                else:
-                    # Other ISO 14443-A card (e.g., NTAG)
-                    memory = card.read_memory()
+                memory = card.read_memory()
 
                 # Display memory content
                 for offset in range(0, len(memory), 16):

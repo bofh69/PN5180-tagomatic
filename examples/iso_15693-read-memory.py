@@ -8,8 +8,8 @@
 This example program finds the UID of ISO-15693 cards
 
 Usage:
-    examples/iso_15693-update-memory.py /dev/ttyACM0
-    examples/iso_15693-update-memory.py COM3
+    examples/iso_15693-read-memory.py /dev/ttyACM0
+    examples/iso_15693-read-memory.py COM3
 """
 
 import argparse
@@ -47,33 +47,35 @@ def main() -> int:
                 print("Performing ISO 15693 inventory...")
 
                 # Perform inventory
-                uids = session.iso15693_inventory()
+                uids = session.iso15693_inventory(afi=0x00)
 
                 # Display results
                 if uids:
                     print(f"\nFound {len(uids)} tag(s):")
                     for i, uid in enumerate(uids, 1):
-                        print(f"  {i}. UID: {uid.hex(':')}")
+                        print(f"  {i}. {uid}")
 
                     card = session.connect_iso15693(uids[0])
-                    card.write_memory(4, b" Hello! ")
 
-                    memory = card.read_memory()
-                    for offset in range(0, len(memory), 16):
-                        chunk = memory[offset : offset + 16]
-                        ascii_values = "".join(
-                            chr(byte) if 32 <= byte <= 126 else "."
-                            for byte in chunk
-                        )
-                        print(
-                            f"({offset:03x}): {chunk.hex(' ')} {ascii_values}"
-                        )
+                    try:
+                        for offset in range(0, 512, 16):
+                            chunk = card.read_memory(offset, 16)
+                            ascii_values = "".join(
+                                chr(byte) if 32 <= byte <= 126 else "."
+                                for byte in chunk
+                            )
+                            print(
+                                f"({offset:03x}): {chunk.hex(' ')} {ascii_values}"
+                            )
+                    except TimeoutError:
+                        # Done
+                        pass
                 else:
                     print("\nNo tags found")
 
         return 0
 
-    except Exception as e:
+    except Exception as e:  #  pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         return 1
 

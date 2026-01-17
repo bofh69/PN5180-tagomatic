@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+from .cards import Iso15693UniqueId
+
 try:
     from simple_rpc import Interface  # type: ignore[import-untyped]
 except ImportError as e:
@@ -21,8 +23,10 @@ from .constants import (
     PN5180Error,
     RegisterOperation,
     Registers,
+    RxProtocol,
     SwitchMode,
     TimeslotBehavior,
+    TxProtocol,
 )
 
 MAX_TIMEOUT = 200  # Maximum time to wait for response
@@ -342,7 +346,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
             raise PN5180Error("switch_mode", result)
 
     def mifare_authenticate(
-        self, key: bytes, key_type: int, block_addr: int, uid: int
+        self, key: bytes, key_type: int, block_addr: int, mifare_uid: int
     ) -> int:
         """Authenticate to mifare card.
 
@@ -350,7 +354,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
             key: 6 byte key.
             key_type: MifareKeyType.KEY_A (0x60) or MifareKeyType.KEY_B (0x61).
             block_addr: Block address (byte: 0-255).
-            uid: 32-bit card UID (0-2^32-1).
+            mifare_uid: card's UID (32-bit)
 
         Returns:
             Authentication result: 0=authenticated, 1=permission denied, 2=timeout.
@@ -358,6 +362,8 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
         Raises:
             PN5180Error: If the operation fails with error < 0.
         """
+        self._validate_uint32(mifare_uid, "mifare_uid")
+
         if len(key) != 6:
             raise ValueError("key must be exactly 6 bytes")
         if key_type not in (MifareKeyType.KEY_A, MifareKeyType.KEY_B):
@@ -366,11 +372,11 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
                 f"MifareKeyType.KEY_B (0x61), got {key_type:#x}"
             )
         self._validate_uint8(block_addr, "block_addr")
-        self._validate_uint32(uid, "uid")
+        self._validate_uint32(mifare_uid, "mifare_uid")
         result = cast(
             int,
             self._interface.mifare_authenticate(
-                list(key), key_type, block_addr, uid
+                list(key), key_type, block_addr, mifare_uid
             ),
         )
         if result < 0:
@@ -454,7 +460,9 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
             raise PN5180Error("epc_retrieve_inventory_result_size", result)
         return result
 
-    def load_rf_config(self, tx_config: int, rx_config: int) -> None:
+    def load_rf_config(
+        self, tx_config: TxProtocol, rx_config: RxProtocol
+    ) -> None:
         """Load RF config settings for RX/TX.
 
         Args:
@@ -683,7 +691,8 @@ class PN5180Helper(PN5180Proxy):
         protocol_extension: bool = False,
         to_selected: bool = False,
         option_flag: bool = False,
-        uid: bytes | None = None,
+        uid: Iso15693UniqueId | None = None,
+        afi: int | None = None,
     ) -> None:
         """Send ISO/IEC 15693 Request
 
@@ -700,30 +709,47 @@ class PN5180Helper(PN5180Proxy):
 
         Raises:
             PN5180Error: If communication fails.
+            ValueError: Incorrect parameters to function.
         """
 
         self._validate_uint8(command, "command")
+
         flags = 0
         if dual_sub_carrier:
             flags |= 1
         if not slow_rate:
             flags |= 2
         if is_inventory:
+            if uid is not None:
+                raise ValueError(
+                    "is_inventory can't be combined with uid field"
+                )
             flags |= 4
         if protocol_extension:
             flags |= 8
         if to_selected:
-            if uid:
+            if is_inventory:
+                raise ValueError(
+                    "is_inventory must not be set if to_selected is given"
+                )
+            if uid is not None:
                 raise ValueError("Can't combine UID with to_selected")
             flags |= 16
-        if uid:
+        if afi is not None:
+            if not is_inventory:
+                raise ValueError("is_inventory must be set if afi is given")
+            flags |= 16
+        if uid is not None:
             flags |= 32
         if option_flag:
             flags |= 64
 
         frame = bytes([flags, command])
-        if uid:
-            frame += uid[::-1]
+        if uid is not None:
+            frame += uid.uid_as_bytes()[::-1]
+        if afi is not None:
+            frame += bytes([afi])
+
         frame += parameters
 
         # print(f"Sending frame {frame.hex(' ')}")
@@ -740,7 +766,8 @@ class PN5180Helper(PN5180Proxy):
         protocol_extension: bool = False,
         to_selected: bool = False,
         option_flag: bool = False,
-        uid: bytes | None = None,
+        uid: Iso15693UniqueId | None = None,
+        afi: int | None = None,
     ) -> bytes:
         """Send ISO/IEC 15693 Request
 
@@ -776,6 +803,7 @@ class PN5180Helper(PN5180Proxy):
             to_selected=to_selected,
             option_flag=option_flag,
             uid=uid,
+            afi=afi,
         )
         if not self.wait_for_irq(MAX_TIMEOUT):
             raise TimeoutError(f"No answer for 0x{command:02x} request.")

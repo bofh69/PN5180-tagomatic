@@ -46,17 +46,21 @@ class ISO15693Error(Exception):
 class MemoryWriteError(Exception):
     """Exception raised when memory_write returns an error response from card."""
 
-    def __init__(self, error_code: int, response_data: bytes) -> None:
+    def __init__(
+        self, offset: int, error_code: int, response_data: bytes
+    ) -> None:
         """Initialize MemoryWriteError.
 
         Args:
+            offset: The offset that was written to.
             error_code: The error code from the tag's error response.
             response_data: The full error response data from the tag.
         """
+        self.offset = offset
         self.error_code = error_code
         self.response_data = response_data
         super().__init__(
-            f"MemoryWrite command failed "
+            f"MemoryWrite command failed at offset {offset} "
             f"with error code 0x{error_code:02X}"
         )
 
@@ -90,6 +94,99 @@ class TimeslotBehavior(IntEnum):
     MAX_TIMESLOTS = 0  # Response contains max. number of time slots
     SINGLE_TIMESLOT = 1  # Response contains only one timeslot
     SINGLE_WITH_HANDLE = 2  # Single timeslot with card handle if valid
+
+
+class TxProtocol(IntEnum):
+    """TX Protocol configuration number"""
+
+    ISO_14443_A_106 = 0x00
+    ISO_14443_A_212 = 0x01
+    ISO_14443_A_424 = 0x02
+    ISO_14443_A_848 = 0x03
+
+    ISO_14443_B_106 = 0x04
+    ISO_14443_B_212 = 0x05
+    ISO_14443_B_424 = 0x06
+    ISO_14443_B_848 = 0x07
+
+    NFC_PI_106 = 0x00
+    NFC_PI_212 = 0x08
+    NFC_PI_424 = 0x09
+
+    FELICA_212 = 0x08
+    FELICA_424 = 0x09
+
+    NFC_ACTIVE_INITIATOR_106 = 0x0A
+    NFC_ACTIVE_INITIATOR_212 = 0x0B
+    NFC_ACTIVE_INITIATOR_424 = 0x0C
+
+    ISO_15693_ASK100_26 = 0x0D
+    ISO_15693_ASK10_26 = 0x0E
+
+    ISO_18003M3_MANCH_424_4 = 0x0F
+    ISO_18003M3_MANCH_424_2 = 0x10
+    ISO_18003M3_MANCH_848_4 = 0x11
+    ISO_18003M3_MANCH_848_2 = 0x12
+    ISO_18003M3_MANCH_424_4_106 = 0x13
+
+    ISO_14443_A_PICC_212 = 0x14
+    ISO_14443_A_PICC_424 = 0x15
+    ISO_14443_A_PICC_848 = 0x16
+
+    NFC_PASSIVE_TARGET_212 = 0x17
+    NFC_PASSIVE_TARGET_424 = 0x18
+
+    NFC_ACTIVE_TARGET_106 = 0x19
+    NFC_ACTIVE_TARGET_212 = 0x1A
+    NFC_ACTIVE_TARGET_424 = 0x1B
+    GTM = 0x1C
+
+
+class RxProtocol(IntEnum):
+    """RX Protocol configuration number"""
+
+    ISO_14443_A_106 = 0x80
+    ISO_14443_A_212 = 0x81
+    ISO_14443_A_424 = 0x82
+    ISO_14443_A_848 = 0x83
+
+    ISO_14443_B_106 = 0x84
+    ISO_14443_B_212 = 0x85
+    ISO_14443_B_424 = 0x86
+    ISO_14443_B_848 = 0x87
+
+    NFC_PI_106 = 0x80
+    NFC_PI_212 = 0x88
+    NFC_PI_424 = 0x89
+
+    FELICA_212 = 0x88
+    FELICA_424 = 0x89
+
+    NFC_ACTIVE_INITIATOR_106 = 0x8A
+    NFC_ACTIVE_INITIATOR_212 = 0x8B
+    NFC_ACTIVE_INITIATOR_424 = 0x8C
+
+    ISO_15693_26 = 0x8D
+    ISO_15693_53 = 0x8E
+
+    ISO_18003M3_MANCH_424_4 = 0x8F
+    ISO_18003M3_MANCH_424_2 = 0x90
+    ISO_18003M3_MANCH_848_4 = 0x91
+    ISO_18003M3_MANCH_848_2 = 0x92
+
+    ISO_14443_A_PICC_106 = 0x93
+    ISO_14443_A_PICC_212 = 0x94
+    ISO_14443_A_PICC_424 = 0x95
+    ISO_14443_A_PICC_848 = 0x96
+
+    NFC_PASSIVE_TARGET_212 = 0x97
+    NFC_PASSIVE_TARGET_424 = 0x98
+
+    ISO_14443_A_106_II = 0x99
+    ISO_14443_A_212_II = 0x9A
+    ISO_14443_A_424_II = 0x9B
+
+    GTM = 0x9C
 
 
 class Registers(IntEnum):

@@ -15,6 +15,10 @@ import argparse
 import sys
 
 from pn5180_tagomatic import PN5180
+from pn5180_tagomatic.constants import (
+    RxProtocol,
+    TxProtocol,
+)
 
 
 def main() -> int:
@@ -35,9 +39,10 @@ def main() -> int:
             print("PN5180 reader initialized")
 
             # Start ISO 15693 communication session
-            # 0x0D = TX config for ISO 15693
-            # 0x8D = RX config for ISO 15693
-            with reader.start_session(0x0D, 0x8D) as session:
+            with reader.start_session(
+                TxProtocol.ISO_15693_ASK100_26,
+                RxProtocol.ISO_15693_26,
+            ) as session:
                 print("Performing ISO 15693 inventory...")
 
                 # Perform inventory
@@ -47,13 +52,13 @@ def main() -> int:
                 if uids:
                     print(f"\nFound {len(uids)} tag(s):")
                     for i, uid in enumerate(uids, 1):
-                        print(f"  {i}. UID: {uid.hex(':')}")
+                        print(f"  {i}. {uid}")
                 else:
                     print("\nNo tags found")
 
         return 0
 
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
