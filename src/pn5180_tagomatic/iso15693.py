@@ -42,22 +42,22 @@ class ISO15693Card(Card):
     @property
     def dsfid(self) -> int | None:
         """Gets the DSFID value, if supported by card"""
-        self._fetch_sys_info_if_needed()
+        self._ensure_sys_info_loaded()
         return self._dsfid
 
     @property
     def afi(self) -> int | None:
         """Gets the AFI value, if supported by card"""
-        self._fetch_sys_info_if_needed()
+        self._ensure_sys_info_loaded()
         return self._afi
 
     @property
     def ic_reference(self) -> int | None:
         """Gets the IC reference value, if supported by card"""
-        self._fetch_sys_info_if_needed()
+        self._ensure_sys_info_loaded()
         return self._ic_reference
 
-    def _fetch_sys_info_if_needed(self) -> None:
+    def _ensure_sys_info_loaded(self) -> None:
         if self._block_size < 0:
             sys_info = self.get_system_information()
             self._block_size = sys_info.get("block_size", 4)
@@ -68,7 +68,7 @@ class ISO15693Card(Card):
 
     @property
     def memory_block_size(self) -> int:
-        self._fetch_sys_info_if_needed()
+        self._ensure_sys_info_loaded()
         return self._block_size
 
     def read_memory(self, offset: int = 0, length: int | None = None) -> bytes:
