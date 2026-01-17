@@ -27,9 +27,7 @@ Frontend module and a Raspberry Pi Pico (Zero).
 - Can authenticate against Mifare classic cards to read their memories.
 - Finds ISO/IEC 15693 cards, uses 15693-3 commands to read/write their memories.
 
-Multiple cards in the RFID field is currently not really supported,
-the hardware and arduino sketch supports all commands for it.
-
+Multiple cards can be detected within the field.
 
 ## Installation
 
@@ -56,19 +54,17 @@ See [sketch/README.md](sketch/README.md) for instructions on building and upload
 ## Usage
 
 ```python
-from pn5180_tagomatic import PN5180
-
+from pn5180_tagomatic import PN5180, RxProtocol, TxProtocol
 
 # Create reader instance and use it
 with PN5180("/dev/ttyACM0") as reader:
     versions = reader.ll.read_eeprom(0x10, 6)
-    with reader.start_session(0x00, 0x80) as session:
+    with reader.start_session(
+        TxProtocol.ISO_14443_A_106, RxProtocol.ISO_14443_A_106
+    ) as session:
         card = session.connect_one_iso14443a()
-        print(f"Reading from card {card.uid.hex(':')}")
-        if len(card.uid) == 4:
-            memory = card.read_mifare_memory()
-        else:
-            memory = card.read_memory()
+        print(f"Reading from card {card.id}")
+        memory = card.read_memory()
 ```
 
 ### Example Program
