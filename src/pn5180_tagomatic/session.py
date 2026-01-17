@@ -143,7 +143,7 @@ class PN5180RFSession:
             max_cards=1,
         )
         if len(card_ids) == 0:
-            raise TimeoutError("No card responded")
+            raise TimeoutError("No ISO 14443-A card responded")
         return card_ids[0]
 
     @staticmethod
