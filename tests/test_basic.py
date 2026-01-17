@@ -10,7 +10,6 @@ def test_version() -> None:
     """Test that version is defined."""
     assert hasattr(pn5180_tagomatic, "__version__")
     assert isinstance(pn5180_tagomatic.__version__, str)
-    assert pn5180_tagomatic.__version__ == "0.1.0"
 
 
 def test_package_import() -> None:

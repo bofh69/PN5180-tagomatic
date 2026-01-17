@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pn5180-tagomatic"
-version = "0.1.0"
+version = "0.1.1rc1"
 description = "USB based RFID reader with Python interface"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -110,7 +110,7 @@ addopts = [
 ]
 
 [tool.bumpver]
-current_version = "0.1.1rc1"
+current_version = "0.1.1-rc1"
 version_pattern = "MAJOR.MINOR.PATCH[-PYTAGNUM]"
 commit_message = "bump version {old_version} -> {new_version}"
 tag_message = "{new_version}"
@@ -123,7 +123,7 @@ push = false
 
 [tool.bumpver.file_patterns]
 "pyproject.toml" = [
-    'current_version = "{pep440_version}"',
+    'version = "{pep440_version}"',
 ]
 "src/pn5180_tagomatic/__init__.py" = [
     '__version__ = "{pep440_version}"',
