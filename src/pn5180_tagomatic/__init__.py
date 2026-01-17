@@ -29,7 +29,7 @@ from .pn5180 import PN5180
 from .proxy import PN5180Helper, PN5180Proxy
 from .session import PN5180RFSession
 
-__version__ = "0.1.1rc1"
+__version__ = "0.1.1rc2"
 __all__ = [
     "Card",
     "ISO14443ACard",
