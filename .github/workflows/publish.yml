@@ -60,7 +60,7 @@ jobs:
 
           # Updating links.
           BASE_URL="https://github.com/bofh69/PN5180-tagomatic/tree/$VERSION"
-          sed -i "s#](\\([^h#]\\)#$BASE_URL/\\1#" README.md
+          sed -i "s#](\\([^h#]\\)#]($BASE_URL/\\1#" README.md
       
       - name: Install build dependencies
         run: |
