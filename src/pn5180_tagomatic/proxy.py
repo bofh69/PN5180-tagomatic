@@ -42,7 +42,7 @@ class PN5180Proxy:  # pylint: disable=too-many-public-methods
     Args:
         tty: The tty device path to communicate via.
 
-    Example:
+    Examples:
         >>> from pn5180_tagomatic import PN5180Proxy
         >>> reader = PN5180Proxy("/dev/ttyACM0")
         >>> reader.reset()
@@ -681,8 +681,10 @@ class PN5180Helper(PN5180Proxy):
 
         return self.read_received_data()
 
+    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-positional-arguments
     def send_15693_request(
-        self,  # pylint: disable=too-many-arguments
+        self,
         command: int,
         parameters: bytes,
         is_inventory: bool = False,
@@ -711,6 +713,7 @@ class PN5180Helper(PN5180Proxy):
             PN5180Error: If communication fails.
             ValueError: Incorrect parameters to function.
         """
+        # pylint: disable=too-many-branches
 
         self._validate_uint8(command, "command")
 

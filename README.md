@@ -22,12 +22,14 @@ Frontend module and a Raspberry Pi Pico (Zero).
 - Python library for easy integration.
 - Uses USB serial communication to the reader.
 - Cross-platform support (Linux, Windows, macOS).
-- Finds and selects single ISO/IEC 14443 cards.
-- Uses NFC FORUM commands to read/write 14443-A cards' memories.
+- Finds and selects ISO/IEC 14443A and ISO/IEC 15693 cards.
+- Can read/write the cards' memories.
 - Can authenticate against Mifare classic cards to read their memories.
-- Finds ISO/IEC 15693 cards, uses 15693-3 commands to read/write their memories.
+- Supports multiple cards within the field.
 
-Multiple cards can be detected within the field.
+## API Documentation
+
+See [API Reference](https://pn5180-tagomatic.readthedocs.io/en/latest/).
 
 ## Installation
 

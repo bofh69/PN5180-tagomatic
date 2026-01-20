@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 PN5180-tagomatic contributors
+# SPDX-License-Identifier: CC0-1.0
+
+site_name: PN5180 Tagomatic
+repo_url: https://github.com/bofh69/pn5180-tagomatic
+
+theme:
+  name: "material"
+  palette:
+    scheme: slate
+
+plugins:
+  - search
+  - mkdocstrings
+
+nav:
+  - Home: 'README.md'
+  - API Reference: 'reference.md'

@@ -27,16 +27,21 @@ class PN5180:
     Attributes:
         ll: Low-level PN5180 interface for direct hardware access.
 
-    Example:
-        >>> from pn5180_tagomatic import PN5180
+    Examples:
+        >>> from pn5180_tagomatic import *
         >>> with PN5180("/dev/ttyACM0") as reader:
-        ...     # High-level API (recommended)
-        ...     with reader.start_session(0x00, 0x80) as comm:
-        ...         card = comm.connect_one_iso14443a()
-        ...         memory = card.read_memory()
+        ...     # High-level API
+        ...     with reader.start_session(
+        ...         TxProtocol.ISO_14443_A_106, RxProtocol.ISO_14443_A_106
+        ...     ) as comm:
+        ...         card: Card = comm.connect_one_iso14443a()
+        ...         print(f"Found card: {card.id}")
+        ...         memory: bytes = card.read_memory()
         ...
-        ...     # Low-level access if needed
-        ...     reader.ll.write_register(addr, value)
+        ...     # Low-level access, when needed
+        ...     data: bytes = reader.ll.read_eeprom(0x12, 2)
+        ...     print("Read from EEPROM")
+        ...     print(f"Firmware version: {data[1]}.{data[0]}")
     """
 
     def __init__(self, tty: str) -> None:
@@ -66,11 +71,11 @@ class PN5180:
         Raises:
             PN5180Error: If the operation fails.
 
-        Example:
+        Examples:
             >>> reader = PN5180("/dev/ttyACM0")
             >>> with reader.start_session(0x00, 0x80) as comm:
             ...     card = comm.connect_one_iso14443a()
-            ...     uid = card.uid
+            ...     uid = card.id.uid_as_bytes()
             ...     memory = card.read_memory()
         """
         self.ll.load_rf_config(tx_config, rx_config)
