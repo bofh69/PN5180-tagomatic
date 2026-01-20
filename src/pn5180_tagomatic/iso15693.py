@@ -71,6 +71,11 @@ class ISO15693Card(Card):
         self._ensure_sys_info_loaded()
         return self._block_size
 
+    @property
+    def memory_number_of_blocks(self) -> int:
+        self._ensure_sys_info_loaded()
+        return self._num_blocks
+
     def read_memory(self, offset: int = 0, length: int | None = None) -> bytes:
         """Read memory from card.
 
@@ -145,9 +150,7 @@ class ISO15693Card(Card):
                 "Error getting system information", system_info[1]
             )
         if len(system_info) < 1:
-            raise PN5180Error(
-                "Error getting system information, no answer", 0
-            )
+            raise PN5180Error("Error getting system information, no answer", 0)
 
         pos = 10
         result = {}
