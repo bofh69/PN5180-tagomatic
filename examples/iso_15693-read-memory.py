@@ -58,8 +58,10 @@ def main() -> int:
                     card = session.connect_iso15693(uids[0])
 
                     try:
+                        memory = b""
                         for offset in range(0, 512, 16):
                             chunk = card.read_memory(offset, 16)
+                            memory += chunk
                             ascii_values = "".join(
                                 chr(byte) if 32 <= byte <= 126 else "."
                                 for byte in chunk
@@ -70,6 +72,14 @@ def main() -> int:
                     except TimeoutError:
                         # Done
                         pass
+                    ndef_result = card.get_ndef(memory)
+                    if ndef_result is not None:
+                        start, mem = ndef_result
+                        print(
+                            f"NDEF found, it starts at {start}, len={len(mem)}"
+                        )
+                        print(f"Content:\n{mem.hex(' ')}")
+                        print(f"Next TLV type: {memory[start + len(mem)]:02x}")
                 else:
                     print("\nNo tags found")
 

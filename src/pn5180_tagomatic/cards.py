@@ -121,3 +121,17 @@ class Card(Protocol):
             TimeoutError: If card does not respond.
             MemoryWriteError: Other memory write failures.
         """
+
+    def get_ndef(self, memory: bytes) -> tuple[int, bytes] | None:
+        """Find the NDEF memory.
+
+        If found, the start index in the input memory and
+        its bytes are returned.
+
+        Args:
+            memory: The card's memory, starting from 0
+
+        Returns:
+            (start, ndef_bytes),
+            or None if it wasn't found.
+        """

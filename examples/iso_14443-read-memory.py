@@ -49,7 +49,7 @@ def main() -> int:
                     print(f"Error: {e}")
                     return 1
 
-                memory = card.read_memory()
+                memory = card.read_memory(0, 512)
 
                 # Display memory content
                 for offset in range(0, len(memory), 16):
@@ -59,6 +59,13 @@ def main() -> int:
                         for byte in chunk
                     )
                     print(f"({offset:03x}): {chunk.hex(' ')} {ascii_values}")
+
+                ndef_result = card.get_ndef(memory)
+                if ndef_result is not None:
+                    start, mem = ndef_result
+                    print(f"NDEF found, it starts at {start}, len={len(mem)}")
+                    print(f"Content:\n{mem.hex(' ')}")
+                    print(f"Next TLV type: {memory[start + len(mem)]:02x}")
 
         return 0
 

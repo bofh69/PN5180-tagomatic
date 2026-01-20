@@ -204,7 +204,7 @@ class PN5180RFSession:
             (0, b"", 0, [], True),
         ]
         while len(discovery_stack) > 0:
-            (cl, mask, coll_bit, uid, restart) = discovery_stack.pop()
+            cl, mask, coll_bit, uid, restart = discovery_stack.pop()
 
             if restart:
                 self._reader.turn_off_crc()
@@ -246,9 +246,7 @@ class PN5180RFSession:
             self._reader.set_rx_crc_and_first_bit(False, 0)
             self._reader.turn_off_tx_crc()
             cmd = self._get_cmd_for_level(cl)
-            (nvb, final_bits) = self._get_nvb_and_final_bits(
-                len(mask), coll_bit
-            )
+            nvb, final_bits = self._get_nvb_and_final_bits(len(mask), coll_bit)
 
             try:
                 self._reader.set_rx_crc_and_first_bit(False, final_bits)
