@@ -13,7 +13,12 @@ SPDX-FileCopyrightText = "2026 PN5180-tagomatic contributors"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 [[annotations]]
-path = [".gitignore", ".clang-format"]
+path = [
+  ".gitignore",
+  ".clang-format",
+  ".readthedocs.yaml",
+  "docs/reference.md"
+]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 PN5180-tagomatic contributors"
 SPDX-License-Identifier = "CC0-1.0"

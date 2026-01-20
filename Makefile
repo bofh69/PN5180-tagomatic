@@ -41,12 +41,24 @@ $(VENV)/.timestamp-dev: $(VENV)/bin/activate pyproject.toml
 	$(PIP) install -e ".[dev]"
 	touch $@
 
+# Install package with docs dependencies
+$(VENV)/.timestamp-docs: $(VENV)/bin/activate pyproject.toml
+	$(PIP) install -e ".[docs]"
+	touch $@
+
 .PHONY: install-dev
 install-dev: $(VENV)/.timestamp-dev
+
+.PHONY: install-docs
+install-dev: $(VENV)/.timestamp-docs
 
 .PHONY: test
 test: install-dev
 	$(PYTEST)
+
+.PHONY: docs
+docs: install-docs
+	mkdocs build
 
 .PHONY: lint
 lint: install-dev
@@ -66,6 +78,7 @@ clean:
 	rm -rf $(VENV)
 	rm -rf build/
 	rm -rf dist/
+	rm -rf site/
 	rm -rf *.egg-info
 	rm -rf .pytest_cache
 	rm -rf .ruff_cache
