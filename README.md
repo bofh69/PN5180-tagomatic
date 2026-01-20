@@ -29,7 +29,7 @@ Frontend module and a Raspberry Pi Pico (Zero).
 
 ## API Documentation
 
-See [API Reference](https://readthedocs.com/bofh69/pn5180_tagomatic/).
+See [API Reference](https://pn5180-tagomatic.readthedocs.io/en/latest/).
 
 ## Installation
 
