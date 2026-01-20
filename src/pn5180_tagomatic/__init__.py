@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 PN5180-tagomatic contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""PN5180-tagomatic: USB based RFID reader with Python interface."""
+"""PN5180-tagomatic: USB connected RFID reader with Python interface."""
 
 from .cards import (
     Card,
