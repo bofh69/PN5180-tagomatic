@@ -145,24 +145,26 @@ class ISO15693Card(Card):
                 "Error getting system information", system_info[1]
             )
         if len(system_info) < 1:
-            system_info += b"\0"
+            raise PN5180Error(
+                "Error getting system information, no answer", 0
+            )
 
-        pos = 9
+        pos = 10
         result = {}
-        if system_info[0] & 1:
+        if system_info[1] & 1:
             result["dsfid"] = system_info[pos]
             pos += 1
-        if system_info[0] & 2:
+        if system_info[1] & 2:
             result["afi"] = system_info[pos]
             pos += 1
-        if system_info[0] & 4:
+        if system_info[1] & 4:
             result["num_blocks"] = system_info[pos] + 1
             pos += 1
             result["block_size"] = (system_info[pos] & 31) + 1
             pos += 1
-        if system_info[0] & 8:
-            pos += 1
+        if system_info[1] & 8:
             result["ic_reference"] = system_info[pos]
+            pos += 1
 
         return result
 
