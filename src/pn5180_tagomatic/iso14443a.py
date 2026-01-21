@@ -288,7 +288,7 @@ class ISO14443ACard(Card):
 
         mlen = (cc[2]) * 4
 
-        is_readonly = bool((cc[3] & 0xF0) == 0xF)
+        is_readonly = bool((cc[3] & 0xF0) == 0xF0)
 
         return (major, minor, mlen, is_readonly)
 
