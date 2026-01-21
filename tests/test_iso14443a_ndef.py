@@ -11,16 +11,20 @@ from pn5180_tagomatic.cards import Iso14443AUniqueId
 from pn5180_tagomatic.iso14443a import ISO14443ACard
 
 
-def test_iso14443a_decode_cc_valid():
-    """Test decode_cc with valid capability container."""
+@pytest.fixture
+def iso14443a_card():
+    """Create an ISO14443A card instance for testing."""
     mock_comm = MagicMock()
     uid = Iso14443AUniqueId(bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x08]))
-    card = ISO14443ACard(mock_comm, uid)
-    
+    return ISO14443ACard(mock_comm, uid)
+
+
+def test_iso14443a_decode_cc_valid(iso14443a_card):
+    """Test decode_cc with valid capability container."""
     # Valid CC: magic byte 0xE1, version 1.0, memory size 12*4=48 bytes, read/write access
     cc = bytes([0xE1, 0x10, 0x0C, 0x00])
     
-    result = card.decode_cc(cc)
+    result = iso14443a_card.decode_cc(cc)
     
     assert result is not None
     major, minor, mlen, is_readonly = result
@@ -30,16 +34,12 @@ def test_iso14443a_decode_cc_valid():
     assert is_readonly is False
 
 
-def test_iso14443a_decode_cc_readonly():
+def test_iso14443a_decode_cc_readonly(iso14443a_card):
     """Test decode_cc with readonly access."""
-    mock_comm = MagicMock()
-    uid = Iso14443AUniqueId(bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x08]))
-    card = ISO14443ACard(mock_comm, uid)
-    
     # CC with readonly flag (cc[3] & 0xF0 == 0xF0)
     cc = bytes([0xE1, 0x10, 0x0C, 0xF0])
     
-    result = card.decode_cc(cc)
+    result = iso14443a_card.decode_cc(cc)
     
     assert result is not None
     major, minor, mlen, is_readonly = result
@@ -49,55 +49,39 @@ def test_iso14443a_decode_cc_readonly():
     assert is_readonly is True
 
 
-def test_iso14443a_decode_cc_partial_readonly():
+def test_iso14443a_decode_cc_partial_readonly(iso14443a_card):
     """Test decode_cc with partial readonly bits set."""
-    mock_comm = MagicMock()
-    uid = Iso14443AUniqueId(bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x08]))
-    card = ISO14443ACard(mock_comm, uid)
-    
     # CC with some readonly bits but not all (0xF0)
     cc = bytes([0xE1, 0x10, 0x0C, 0xE0])
     
-    result = card.decode_cc(cc)
+    result = iso14443a_card.decode_cc(cc)
     
     assert result is not None
     major, minor, mlen, is_readonly = result
     assert is_readonly is False  # Not all bits set
 
 
-def test_iso14443a_decode_cc_invalid_magic():
+def test_iso14443a_decode_cc_invalid_magic(iso14443a_card):
     """Test decode_cc with invalid magic byte."""
-    mock_comm = MagicMock()
-    uid = Iso14443AUniqueId(bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x08]))
-    card = ISO14443ACard(mock_comm, uid)
-    
     # Invalid magic byte (should be 0xE1)
     cc = bytes([0xE2, 0x10, 0x0C, 0x00])
     
-    result = card.decode_cc(cc)
+    result = iso14443a_card.decode_cc(cc)
     
     assert result is None
 
 
-def test_iso14443a_decode_cc_short_input():
+def test_iso14443a_decode_cc_short_input(iso14443a_card):
     """Test decode_cc with input too short."""
-    mock_comm = MagicMock()
-    uid = Iso14443AUniqueId(bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x08]))
-    card = ISO14443ACard(mock_comm, uid)
-    
     # Too short (only 3 bytes, should be at least 4)
     cc = bytes([0xE1, 0x10, 0x0C])
     
     with pytest.raises(ValueError):
-        card.decode_cc(cc)
+        iso14443a_card.decode_cc(cc)
 
 
-def test_iso14443a_get_ndef_simple_tlv():
+def test_iso14443a_get_ndef_simple_tlv(iso14443a_card):
     """Test get_ndef with a simple NDEF TLV structure."""
-    mock_comm = MagicMock()
-    uid = Iso14443AUniqueId(bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x08]))
-    card = ISO14443ACard(mock_comm, uid)
-    
     # Memory layout for ISO14443a:
     # Bytes 0-11: Not used (12 bytes before CC)
     # Bytes 12-15: CC (0xE1, version 1.0, 48 bytes, read/write)
@@ -112,7 +96,7 @@ def test_iso14443a_get_ndef_simple_tlv():
     # Pad to 48 bytes to match CC
     memory.extend([0x00] * (48 - len(memory)))
     
-    result = card.get_ndef(memory)
+    result = iso14443a_card.get_ndef(memory)
     
     assert result is not None
     pos, ndef_bytes = result
@@ -121,12 +105,8 @@ def test_iso14443a_get_ndef_simple_tlv():
     assert ndef_bytes == bytes([0xD1, 0x01, 0x06, 0x54, 0x02, 0x65, 0x6E, 0x68, 0x69, 0x00])
 
 
-def test_iso14443a_get_ndef_long_length():
+def test_iso14443a_get_ndef_long_length(iso14443a_card):
     """Test get_ndef with 3-byte length encoding (length >= 255)."""
-    mock_comm = MagicMock()
-    uid = Iso14443AUniqueId(bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x08]))
-    card = ISO14443ACard(mock_comm, uid)
-    
     # Memory with 3-byte length encoding
     memory = bytearray([0x00] * 12)  # First 12 bytes
     memory.extend([
@@ -138,7 +118,7 @@ def test_iso14443a_get_ndef_long_length():
     # Pad to 1020 bytes to match CC
     memory.extend([0x00] * (1020 - len(memory)))
     
-    result = card.get_ndef(memory)
+    result = iso14443a_card.get_ndef(memory)
     
     assert result is not None
     pos, ndef_bytes = result
@@ -147,12 +127,8 @@ def test_iso14443a_get_ndef_long_length():
     assert all(b == 0xBB for b in ndef_bytes)
 
 
-def test_iso14443a_get_ndef_with_null_tlvs():
+def test_iso14443a_get_ndef_with_null_tlvs(iso14443a_card):
     """Test get_ndef with NULL TLVs before NDEF."""
-    mock_comm = MagicMock()
-    uid = Iso14443AUniqueId(bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x08]))
-    card = ISO14443ACard(mock_comm, uid)
-    
     # Memory with NULL TLVs (0x00) before NDEF
     memory = bytearray([0x00] * 12)
     memory.extend([
@@ -164,7 +140,7 @@ def test_iso14443a_get_ndef_with_null_tlvs():
     # Pad to 48 bytes to match CC
     memory.extend([0x00] * (48 - len(memory)))
     
-    result = card.get_ndef(memory)
+    result = iso14443a_card.get_ndef(memory)
     
     assert result is not None
     pos, ndef_bytes = result
@@ -172,12 +148,8 @@ def test_iso14443a_get_ndef_with_null_tlvs():
     assert ndef_bytes == bytes([0x48, 0x65, 0x6C, 0x6C, 0x6F])
 
 
-def test_iso14443a_get_ndef_terminator_tlv():
+def test_iso14443a_get_ndef_terminator_tlv(iso14443a_card):
     """Test get_ndef returns None when encountering terminator TLV before NDEF."""
-    mock_comm = MagicMock()
-    uid = Iso14443AUniqueId(bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x08]))
-    card = ISO14443ACard(mock_comm, uid)
-    
     # Memory with terminator TLV (0xFE) before NDEF
     memory = bytearray([0x00] * 12)
     memory.extend([
@@ -186,20 +158,14 @@ def test_iso14443a_get_ndef_terminator_tlv():
         0x03, 0x05,              # NDEF TLV (won't be reached)
         0x48, 0x65, 0x6C, 0x6C, 0x6F
     ])
-    # Pad to 48 bytes to match CC
-    memory.extend([0x00] * (48 - len(memory)))
     
-    result = card.get_ndef(memory)
+    result = iso14443a_card.get_ndef(memory)
     
     assert result is None
 
 
-def test_iso14443a_get_ndef_invalid_cc():
+def test_iso14443a_get_ndef_invalid_cc(iso14443a_card):
     """Test get_ndef returns None with invalid CC."""
-    mock_comm = MagicMock()
-    uid = Iso14443AUniqueId(bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x08]))
-    card = ISO14443ACard(mock_comm, uid)
-    
     # Invalid CC (wrong magic byte)
     memory = bytearray([0x00] * 12)
     memory.extend([
@@ -207,20 +173,14 @@ def test_iso14443a_get_ndef_invalid_cc():
         0x03, 0x05,
         0x48, 0x65, 0x6C, 0x6C, 0x6F
     ])
-    # Pad to 48 bytes (using the CC value as if it were valid)
-    memory.extend([0x00] * (48 - len(memory)))
     
-    result = card.get_ndef(memory)
+    result = iso14443a_card.get_ndef(memory)
     
     assert result is None
 
 
-def test_iso14443a_get_ndef_unsupported_version():
+def test_iso14443a_get_ndef_unsupported_version(iso14443a_card):
     """Test get_ndef returns None with unsupported major version."""
-    mock_comm = MagicMock()
-    uid = Iso14443AUniqueId(bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x08]))
-    card = ISO14443ACard(mock_comm, uid)
-    
     # Major version > 1 (unsupported for ISO14443a)
     memory = bytearray([0x00] * 12)
     memory.extend([
@@ -228,20 +188,14 @@ def test_iso14443a_get_ndef_unsupported_version():
         0x03, 0x05,
         0x48, 0x65, 0x6C, 0x6C, 0x6F
     ])
-    # Pad to 48 bytes to match CC
-    memory.extend([0x00] * (48 - len(memory)))
     
-    result = card.get_ndef(memory)
+    result = iso14443a_card.get_ndef(memory)
     
     assert result is None
 
 
-def test_iso14443a_get_ndef_memory_too_small():
+def test_iso14443a_get_ndef_memory_too_small(iso14443a_card):
     """Test get_ndef returns None when memory is smaller than CC indicates."""
-    mock_comm = MagicMock()
-    uid = Iso14443AUniqueId(bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x08]))
-    card = ISO14443ACard(mock_comm, uid)
-    
     # CC indicates 1020 bytes but memory is only 28 bytes
     memory = bytearray([0x00] * 12)
     memory.extend([
@@ -250,17 +204,13 @@ def test_iso14443a_get_ndef_memory_too_small():
         0x48, 0x65, 0x6C, 0x6C, 0x6F
     ])
     
-    result = card.get_ndef(memory)
+    result = iso14443a_card.get_ndef(memory)
     
     assert result is None
 
 
-def test_iso14443a_get_ndef_field_exceeds_memory():
+def test_iso14443a_get_ndef_field_exceeds_memory(iso14443a_card):
     """Test get_ndef returns None when NDEF field exceeds memory length."""
-    mock_comm = MagicMock()
-    uid = Iso14443AUniqueId(bytes([0x01, 0x02, 0x03, 0x04]), bytes([0x08]))
-    card = ISO14443ACard(mock_comm, uid)
-    
     # NDEF field length exceeds available memory
     memory = bytearray([0x00] * 12)
     memory.extend([
@@ -268,9 +218,7 @@ def test_iso14443a_get_ndef_field_exceeds_memory():
         0x03, 0x64,              # NDEF TLV: Length=100 (exceeds limit)
         0x48, 0x65, 0x6C, 0x6C, 0x6F
     ])
-    # Pad to 48 bytes to match CC
-    memory.extend([0x00] * (48 - len(memory)))
     
-    result = card.get_ndef(memory)
+    result = iso14443a_card.get_ndef(memory)
     
     assert result is None
