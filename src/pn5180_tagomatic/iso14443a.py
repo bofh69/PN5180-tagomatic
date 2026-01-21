@@ -262,3 +262,79 @@ class ISO14443ACard(Card):
             if len(key_b) != 6:
                 raise ValueError("key_b must be exactly 6 bytes")
             self._keys_b[page_num] = bytes(key_b)
+
+    def decode_cc(self, cc: bytes) -> tuple[int, int, int, bool] | None:
+        """Decode the CC memory block (block 0)
+
+        Args:
+            cc(bytes): The memory from block 0.
+
+        Returns:
+            (major_version, minor_version, memory size, is readonly)
+            or None if CC isn't valid.
+
+        Raises:
+            PN5180Error: If communication with the card fails.
+            ValueError: If cc is less than 4 bytes.
+        """
+        if len(cc) < 4:
+            raise ValueError("cc should be at least 4 bytes")
+
+        if cc[0] != 0xE1:
+            return None
+
+        major = cc[1] >> 4
+        minor = cc[1] & 0xF
+
+        mlen = (cc[2]) * 4
+
+        is_readonly = bool((cc[3] & 0xF0) == 0xF0)
+
+        return (major, minor, mlen, is_readonly)
+
+    def get_ndef(self, memory: bytes) -> tuple[int, bytes] | None:
+        """Find the NDEF memory.
+
+        Args:
+            memory: The card's memory, starting from offset 0
+
+        Returns:
+            (start, ndef_bytes),
+            or None if NDEF couldn't be found.
+        """
+
+        cc = self.decode_cc(memory[12:16])
+        if cc is None:
+            return None
+
+        major, _minor, mlen, _ = cc
+
+        if major > 1:
+            return None
+
+        if mlen > len(memory):
+            return None
+
+        pos = 16
+
+        def read_val(memory: bytes, pos: int) -> tuple[int, int]:
+            if memory[pos] < 255:
+                return memory[pos], pos + 1
+            else:
+                return (memory[pos + 1] << 8) | memory[pos + 2], pos + 3
+
+        while pos < mlen:
+            typ, pos = read_val(memory, pos)
+            if typ == 0:
+                continue
+            if typ == 0xFE:
+                # End of TLV
+                return None
+            field_len, pos = read_val(memory, pos)
+            if typ == 0x03:
+                if pos + field_len > mlen:
+                    return None
+                return (pos, memory[pos : pos + field_len])
+            pos += field_len
+
+        return None

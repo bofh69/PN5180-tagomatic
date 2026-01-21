@@ -71,6 +71,91 @@ class ISO15693Card(Card):
         self._ensure_sys_info_loaded()
         return self._block_size
 
+    @property
+    def memory_number_of_blocks(self) -> int:
+        """Gets the number of blocks the card contains"""
+        self._ensure_sys_info_loaded()
+        return self._num_blocks
+
+    def decode_cc(self, cc: bytes) -> tuple[int, int, int, bool] | None:
+        """Decode the CC memory block (block 0)
+
+        Args:
+            cc(bytes): The memory from block 0.
+
+        Returns:
+            (major_version, minor_version, memory size, is readonly)
+            or None if CC isn't valid.
+
+        Raises:
+            PN5180Error: If communication with the card fails.
+            ValueError: If cc is less than 4 bytes.
+        """
+        if len(cc) < 4:
+            raise ValueError("cc should be at least 4 bytes")
+
+        if cc[0] != 0xE1:
+            return None
+
+        major = cc[1] >> 4
+        minor = cc[1] & 0xF
+
+        mlen = (cc[2] + 1) * 8
+
+        is_readonly = bool(cc[3] & 1)
+
+        return (major, minor, mlen, is_readonly)
+
+    def get_ndef(self, memory: bytes) -> tuple[int, bytes] | None:
+        """Find the NDEF memory.
+
+        If found, the start index in the input memory and
+        its bytes are returned.
+
+        Args:
+            memory: The card's memory, starting from 0
+
+        Returns:
+            (start, ndef_bytes),
+            or None if it wasn't found.
+        """
+
+        cc = self.decode_cc(memory)
+        if cc is None:
+            return None
+
+        major, _minor, mlen, _ = cc
+
+        if major > 4:
+            return None
+
+        if mlen > len(memory):
+            return None
+
+        pos = 4
+
+        def read_val(memory: bytes, pos: int) -> tuple[int, int]:
+            if memory[pos] < 255:
+                return memory[pos], pos + 1
+            else:
+                return (memory[pos + 1] << 8) | memory[pos + 2], pos + 3
+
+        while pos < mlen:
+            typ, pos = read_val(memory, pos)
+            if typ == 0:
+                continue
+            if typ == 0xFE:
+                # End of TLV
+                return None
+            field_len, pos = read_val(memory, pos)
+            if typ == 0x03:
+                if pos + field_len > mlen:
+                    return None
+                return (pos, memory[pos : pos + field_len])
+            pos += field_len
+
+        return None
+
     def read_memory(self, offset: int = 0, length: int | None = None) -> bytes:
         """Read memory from card.
 
@@ -145,24 +230,24 @@ class ISO15693Card(Card):
                 "Error getting system information", system_info[1]
             )
         if len(system_info) < 1:
-            system_info += b"\0"
+            raise PN5180Error("Error getting system information, no answer", 0)
 
-        pos = 9
+        pos = 10
         result = {}
-        if system_info[0] & 1:
+        if system_info[1] & 1:
             result["dsfid"] = system_info[pos]
             pos += 1
-        if system_info[0] & 2:
+        if system_info[1] & 2:
             result["afi"] = system_info[pos]
             pos += 1
-        if system_info[0] & 4:
+        if system_info[1] & 4:
             result["num_blocks"] = system_info[pos] + 1
             pos += 1
             result["block_size"] = (system_info[pos] & 31) + 1
             pos += 1
-        if system_info[0] & 8:
-            pos += 1
+        if system_info[1] & 8:
             result["ic_reference"] = system_info[pos]
+            pos += 1
 
         return result
 
