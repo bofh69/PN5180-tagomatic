@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pn5180-tagomatic"
-version = "0.1.1rc2"
+version = "0.1.1rc3"
 description = "USB based RFID reader with Python interface"
 readme = "README.md"
 requires-python = ">=3.10"
