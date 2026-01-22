@@ -119,6 +119,7 @@ class ISO15693Card(Card):
             (start, ndef_bytes),
             or None if it wasn't found.
         """
+        # pylint: disable=too-many-return-statements
 
         cc = self.decode_cc(memory)
         if cc is None:
@@ -137,8 +138,7 @@ class ISO15693Card(Card):
         def read_val(memory: bytes, pos: int) -> tuple[int, int]:
             if memory[pos] < 255:
                 return memory[pos], pos + 1
-            else:
-                return (memory[pos + 1] << 8) | memory[pos + 2], pos + 3
+            return (memory[pos + 1] << 8) | memory[pos + 2], pos + 3
 
         while pos < mlen:
             typ, pos = read_val(memory, pos)
@@ -189,7 +189,6 @@ class ISO15693Card(Card):
         self._reader.change_mode_to_transceiver()
 
         # TODO: If num_blocks * memory_block_size > 128, loop
-
         # TODO: If start_block > 255, use EXTENDED_READ_MULTIPLE_BLOCKS
         memory_content = self._reader.send_and_receive_15693(
             ISO15693Command.READ_MULTIPLE_BLOCKS,
@@ -222,6 +221,7 @@ class ISO15693Card(Card):
         system_info = self._reader.send_and_receive_15693(
             ISO15693Command.GET_SYSTEM_INFORMATION,
             b"",
+            to_selected=True,
         )
 
         if len(system_info) > 0 and system_info[0] & 1:
@@ -231,6 +231,12 @@ class ISO15693Card(Card):
             )
         if len(system_info) < 1:
             raise PN5180Error("Error getting system information, no answer", 0)
+
+        if len(system_info) < 10:
+            raise PN5180Error(
+                "Error getting system information, no complete answer",
+                system_info[0],
+            )
 
         pos = 10
         result = {}
